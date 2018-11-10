@@ -83,10 +83,10 @@
  */
 
 // Maximum number of scan responses
-#define DEFAULT_MAX_SCAN_RES                  8
+#define DEFAULT_MAX_SCAN_RES                  6
 
 // Scan duration in ms
-#define DEFAULT_SCAN_DURATION                 4000
+#define DEFAULT_SCAN_DURATION                 100
 
 // Discovery mode (limited, general, all)
 #define DEFAULT_DISCOVERY_MODE                DEVDISC_MODE_ALL
@@ -108,6 +108,8 @@
 #define SBO_KEY_CHANGE_EVT                    0x0001
 #define SBO_STATE_CHANGE_EVT                  0x0002
 
+//User Send Interval Time
+#define DEFAULT_USER_TX_INTERVAL_TIME         5
 /*********************************************************************
  * TYPEDEFS
  */
@@ -156,31 +158,28 @@ static Queue_Handle appMsgQueue;
 Task_Struct sboTask;
 Char sboTaskStack[SBO_TASK_STACK_SIZE];
 
-// GAP GATT Attributes
-//static const uint8 simpleBLEDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Observer";
-
 // Number of scan results and scan result index
 static uint8 scanRes;
-static uint8 scanIdx;
 
 // Scan result list
 static gapDevRec_t devList[DEFAULT_MAX_SCAN_RES];
+static tagInfStruct devInfList[DEFAULT_MAX_SCAN_RES];
+static observerInfStruct tagInf_t;
+static tagInfStruct userTxList[DEFAULT_MAX_SCAN_RES];
 
-// Scanning state
-static uint8 scanning = FALSE;
-
+const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
 static void SimpleBLEObserver_init(void);
 static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1);
 static void getMacAddress(uint8_t *mac_address);
+static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8 datalen, uint8 rssi);
 
 static void SimpleBLEObserver_handleKeys(uint8_t shift, uint8_t keys);
 static void SimpleBLEObserver_processStackMsg(ICall_Hdr *pMsg);
 static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg);
 static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent);
-static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 addrType);
 
 static uint8_t SimpleBLEObserver_eventCB(gapObserverRoleEvent_t *pEvent);
 
@@ -260,7 +259,14 @@ void SimpleBLEObserver_init(void)
 
   //获取当前设备的Mac地址，作为设备唯一识别ID
   getMacAddress(&userTxInf.devId[0]);
-
+  //config user inf
+  userTxInf.status       = 0;
+  userTxInf.txTagNum     = 0;
+  userTxInf.tagInfBuf_t  = userTxList;
+  userTxInf.interval     = DEFAULT_USER_TX_INTERVAL_TIME;
+  tagInf_t.index         = 0;
+  tagInf_t.tagNum        = 0;
+  tagInf_t.tagInfBuf_t   = devInfList;
   // Setup Observer Profile
   {
     uint8 scanRes = DEFAULT_MAX_SCAN_RES;
@@ -271,7 +277,13 @@ void SimpleBLEObserver_init(void)
   // Setup GAP
   GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION);
   GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION);
-
+  
+  // add a white list entry
+  if(DEFAULT_DISCOVERY_WHITE_LIST)
+  {
+ 	//HCI_LE_AddWhiteListCmd(HCI_PUBLIC_DEVICE_ADDRESS,&bdAdder);
+  }
+  
   // Start the Device
   VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
 
@@ -409,43 +421,11 @@ static void SimpleBLEObserver_handleKeys(uint8 shift, uint8 keys)
 
   if (keys & KEY_UP)
   {
-    // Start or stop discovery
-    if ( !scanning )
-    {
-      scanning = TRUE;
-      scanRes = 0;
-
-      Display_print0(dispHandle, 2, 0, "Discovering...");
-      Display_clearLines(dispHandle, 3, 4);
-
-      GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                      DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                      DEFAULT_DISCOVERY_WHITE_LIST );
-    }
-    else
-    {
-      GAPObserverRole_CancelDiscovery();
-    }
-
     return;
   }
 
   if (keys & KEY_LEFT)
   {
-    // Display discovery results
-    if ( !scanning && scanRes > 0 )
-    {
-        // Increment index of current result (with wraparound)
-        scanIdx++;
-        if ( scanIdx >= scanRes )
-        {
-          scanIdx = 0;
-        }
-
-        Display_print1(dispHandle, 2, 0, "Device %d", (scanIdx + 1));
-        Display_print0(dispHandle, 3, 0, Util_convertBdAddr2Str(devList[scanIdx].addr));
-    }
-
     return;
   }
 }
@@ -465,37 +445,29 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
   {
     case GAP_DEVICE_INIT_DONE_EVENT:
       {
-        Display_print0(dispHandle, 1, 0, Util_convertBdAddr2Str(pEvent->initDone.devAddr));
-        Display_print0(dispHandle, 2, 0, "Initialized");
+		//设备初始化完成即开启扫描
+		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+       									DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                       	DEFAULT_DISCOVERY_WHITE_LIST ); 
       }
       break;
 
     case GAP_DEVICE_INFO_EVENT:
-      {
-        SimpleBLEObserver_addDeviceInfo(pEvent->deviceInfo.addr,
-                                        pEvent->deviceInfo.addrType);
+	  {
+		SimpleBLEObserver_addDeviceInfo_Ex(pEvent->deviceInfo.addr,
+ 										   pEvent->deviceInfo.pEvtData,
+ 										   pEvent->deviceInfo.dataLen,
+ 										   pEvent->deviceInfo.rssi);
       }
       break;
 
     case GAP_DEVICE_DISCOVERY_EVENT:
       {
-        // discovery complete
-        scanning = FALSE;
-
-        // Copy results
-        scanRes = pEvent->discCmpl.numDevs;
-        memcpy(devList, pEvent->discCmpl.pDevList,
-               (sizeof(gapDevRec_t) * pEvent->discCmpl.numDevs));
-
-        Display_print1(dispHandle, 2, 0, "Devices Found %d", scanRes);
-
-        if ( scanRes > 0 )
-        {
-          Display_print0(dispHandle, 3, 0, "<- To Select");
-        }
-
-        // initialize scan index to last device
-        scanIdx = scanRes;
+      	// discovery complete
+        scanRes = 0;
+		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+       									DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                       	DEFAULT_DISCOVERY_WHITE_LIST ); 		
       }
       break;
 
@@ -528,35 +500,55 @@ static uint8_t SimpleBLEObserver_eventCB(gapObserverRoleEvent_t *pEvent)
 }
 
 /*********************************************************************
- * @fn      SimpleBLEObserver_addDeviceInfo
+ * @fn      SimpleBLEObserver_addDeviceInfo_Ex
  *
  * @brief   Add a device to the device discovery result list
  *
  * @return  none
  */
-static void SimpleBLEObserver_addDeviceInfo(uint8 *pAddr, uint8 addrType)
+static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8 datalen, uint8 rssi)
 {
-  uint8 i;
-
-  // If result count not at max
-  if ( scanRes < DEFAULT_MAX_SCAN_RES )
-  {
-    // Check if device is already in scan results
-    for ( i = 0; i < scanRes; i++ )
-    {
-      if (memcmp(pAddr, devList[i].addr, B_ADDR_LEN) == 0)
-      {
-        return;
-      }
-    }
-
-    // Add addr to scan result list
-    memcpy(devList[scanRes].addr, pAddr, B_ADDR_LEN );
-    devList[scanRes].addrType = addrType;
-
-    // Increment scan result count
-    scanRes++;
-  }
+	uint8 i;
+ 	uint8 majoroffset;
+ 	uint8 uuidoffset;
+ 	uint8 *ptr;
+ 	
+ 	if((pData == NULL) && (pAddr == NULL))
+ 		return;
+ 	
+ 	if(BEELINKER_ADVDATA_LEN != datalen)
+ 		return;
+ 	
+ 	ptr = pData; 
+ 	uuidoffset = BEELINKER_ADVUUID_OFFSET;
+ 	if(memcmp(&ptr[uuidoffset], weiXinUuid, sizeof(weiXinUuid)) != 0)
+ 	  	return;
+ 	   
+   	// If result count not at max
+   	if ( scanRes < DEFAULT_MAX_SCAN_RES )
+   	{
+		// Check if device is already in scan results
+		for ( i = 0; i < scanRes; i++ )
+		{
+			if (memcmp(pAddr, devList[i].addr, B_ADDR_LEN) == 0)
+			{
+				return;
+			}
+		}
+		// Add addr to scan result list
+		memcpy(devList[scanRes].addr, pAddr, B_ADDR_LEN );
+ 		
+		majoroffset = BEELINKER_ADVMAJOR_OFFSET; 
+		memcpy((void *)(&tagInf_t.tagInfBuf_t[scanRes].major[0]), (void *)&ptr[majoroffset], sizeof(uint32));
+ 		
+		tagInf_t.index ++;
+		tagInf_t.tagInfBuf_t[scanRes].tagIndex = tagInf_t.index;
+		tagInf_t.tagInfBuf_t[scanRes].rssi     = rssi;
+ 		
+		// Increment scan result count
+		scanRes++;
+		tagInf_t.tagNum = scanRes;
+	}
 }
 
 /*********************************************************************
