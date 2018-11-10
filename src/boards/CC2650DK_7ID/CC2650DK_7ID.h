@@ -134,6 +134,10 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_DIO29_ANALOG                  IOID_29
 #define Board_DIO30_ANALOG                  IOID_30
 
+/* sx1278  Board */
+#define Board_SX1278_RST                    IOID_27         /* RF1.15 */
+#define Board_SX1278_DIO0                   IOID_26         /* RF1.11 */
+#define Board_SX1278_CSN                    IOID_11 
 /** ============================================================================
  *  Instance identifiers
  *  ==========================================================================*/

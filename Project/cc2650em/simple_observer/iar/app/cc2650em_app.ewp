@@ -1074,6 +1074,9 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\simple_observer.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\tagmgr.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\util.c</name>
         </file>
         <file>
@@ -1146,6 +1149,21 @@
             </file>
             <file>
                 <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\spi\SPICC26XXDMA.h</name>
+            </file>
+        </group>
+        <group>
+            <name>SX1278</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_hal.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_hal.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_lora.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_lora.h</name>
             </file>
         </group>
         <group>
