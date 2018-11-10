@@ -464,10 +464,28 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
     case GAP_DEVICE_DISCOVERY_EVENT:
       {
       	// discovery complete
-        scanRes = 0;
+		//涮选出本次搜索rssi最大设备并暂存到用户区
+ 		if(userTxInf.txTagNum == DEFAULT_DISCOVERY_MODE)
+ 		    return;
+ 		
+ 		for(; scanRes>0; scanRes--)
+ 		{
+ 			if(scanRes -1 == 0)
+ 			{
+ 				memcpy(&userTxInf.tagInfBuf_t[userTxInf.txTagNum], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));	
+ 				continue;
+ 			}
+ 			else
+ 			{
+ 			  	if(tagInf_t.tagInfBuf_t[scanRes-1].rssi > tagInf_t.tagInfBuf_t[scanRes-2].rssi)
+ 					memcpy(&tagInf_t.tagInfBuf_t[scanRes-2], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));							
+ 			}		  
+ 		}		
+		userTxInf.txTagNum ++;
+ 		
 		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-       									DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                       	DEFAULT_DISCOVERY_WHITE_LIST ); 		
+                                       DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                       DEFAULT_DISCOVERY_WHITE_LIST );  	 		
       }
       break;
 
