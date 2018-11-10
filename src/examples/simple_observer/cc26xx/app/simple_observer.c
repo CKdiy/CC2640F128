@@ -72,6 +72,8 @@
 
 #include "simple_observer.h"
 #include "tagmgr.h"
+#include <inc/hw_types.h>
+#include <inc/hw_fcfg1.h>
 /*********************************************************************
  * MACROS
  */
@@ -124,6 +126,7 @@ typedef struct
 // Display Interface
 Display_Handle dispHandle = NULL;
 
+static userTxStruct userTxInf;
 /*********************************************************************
  * EXTERNAL VARIABLES
  */
@@ -171,6 +174,7 @@ static uint8 scanning = FALSE;
  */
 static void SimpleBLEObserver_init(void);
 static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1);
+static void getMacAddress(uint8_t *mac_address);
 
 static void SimpleBLEObserver_handleKeys(uint8_t shift, uint8_t keys);
 static void SimpleBLEObserver_processStackMsg(ICall_Hdr *pMsg);
@@ -254,7 +258,8 @@ void SimpleBLEObserver_init(void)
 
   Board_initKeys(SimpleBLEObserver_keyChangeHandler);
 
-  dispHandle = Display_open(Display_Type_LCD, NULL);
+  //获取当前设备的Mac地址，作为设备唯一识别ID
+  getMacAddress(&userTxInf.devId[0]);
 
   // Setup Observer Profile
   {
@@ -599,5 +604,26 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t state,
   return FALSE;
 }
 
+/*********************************************************************
+ * @fn      getMacAddress
+ *
+ * @brief  获取本设备的MAC地址
+ *
+ * @param   mac_address - MAC地址存储首地址
+ *
+ * @return  none
+ */
+static void getMacAddress(uint8_t *mac_address)  
+{      
+	uint32_t mac0 = HWREG(FCFG1_BASE + FCFG1_O_MAC_BLE_0);    
+	uint32_t mac1 = HWREG(FCFG1_BASE + FCFG1_O_MAC_BLE_1);    
+   
+	*mac_address++ = HI_UINT16(mac1);  
+	*mac_address++ = LO_UINT16(mac1);  
+	*mac_address++ = BREAK_UINT32(mac0, 3);  
+	*mac_address++ = BREAK_UINT32(mac0, 2);  
+	*mac_address++ = BREAK_UINT32(mac0, 1);  
+	*mac_address++ = BREAK_UINT32(mac0, 0);  
+}
 /*********************************************************************
 *********************************************************************/
