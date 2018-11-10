@@ -71,7 +71,7 @@
 #include "board.h"
 
 #include "simple_observer.h"
-
+#include "tagmgr.h"
 /*********************************************************************
  * MACROS
  */
