@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<flash_board>
+  <pass>
+    <loader>$TOOLKIT_DIR$\config\flashloader\TexasInstruments\FlashCC26xxF128RAM20.flash</loader>
+    <range>CODE 0x0 0x1ffff</range>
+    <args>-r</args>
+  </pass>
+</flash_board>

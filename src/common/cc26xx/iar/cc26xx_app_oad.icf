@@ -1,0 +1,286 @@
+/******************************************************************************
+
+ @file  cc26xx_app_oad.icf
+
+ @brief IAR ARM Linker Configuration File - BLE Stack
+
+        Note: Code stack and heap are allocated by the Application/RTOS build.
+
+        Imported Symbols
+        Note: Linker defines are located in the IAR IDE project using
+        --config_def in Options->Linker->Extra Options, or placed in
+        Options->Linker-> Config->Configuration file symbol definitions.
+
+        CCxxxx:             Device Name (e.g. CC2650).
+        FLASH_ONLY_BUILD:   Build full BLE stack in flash only memory.
+        FLASH_ROM_BUILD:    Build Flash portion of BLE stack to work with
+                            ROM code.
+        ROM_BUILD:          Build ROM portion of BLE stack.
+        COMMON_ROM_BUILD:   Build of common ROM code.
+        TEST_ROM_IN_FLASH:  Build ROM code in Flash memory to test.
+        ICALL_RAM0_START:   RAM start of BLE stack.
+        ICALL_STACK0_START: Flash start of BLE stack.
+
+        Exported Symbols
+        Note: Can be used as externs in C code.
+
+        ROM_BASE_ADDR:        Location of start of ROM (where RT Init is
+                              expected).
+        RAM_BASE_ADDR:        Location of start of RAM (for ICall and JT
+                              pointers).
+        COMMON_RAM_BASE_ADDR: Location of start of RAM (for ICall and JT
+                              pointers).
+        PAGE_SIZE:            Size of Flash sector, in bytes.
+        NUM_SNV_PAGES:        Number of sectors used for Simple NV.
+
+ Group: WCS, BTS
+ Target Device: CC2650, CC2640
+
+ ******************************************************************************
+ 
+ Copyright (c) 2013-2018, Texas Instruments Incorporated
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+
+ *  Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+ *  Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+ *  Neither the name of Texas Instruments Incorporated nor the names of
+    its contributors may be used to endorse or promote products derived
+    from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ ******************************************************************************
+ Release Name: ble_sdk_2_02_02_25
+ Release Date: 2018-04-02 18:03:35
+ *****************************************************************************/
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Sizes
+////////////////////////////////////////////////////////////////////////////////
+
+  define symbol RAM_SIZE            = 0x00005000;  // 20K
+  define symbol FLASH_SIZE          = 0x00020000;  // 128K
+  define symbol ROM_SIZE            = 0x0001C000;  // 115K
+
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Definitions
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// RAM
+//
+
+define symbol RAM_START             = 0x20000000;
+define symbol RAM_RESERVED_START    = 0x20004F00;
+
+  if ( isdefinedsymbol(ICALL_RAM0_START) )
+  {
+    define symbol RAM_END           = (ICALL_RAM0_START-1);
+  }
+  else // default
+  {
+    define symbol RAM_END           = RAM_RESERVED_START - 1;
+  }
+
+////////////////////////////////////////////////////////////////////////////////
+// Flash
+//
+
+define symbol FLASH_START           = 0x00000000;
+define symbol PAGE_MASK             = 0xFFFFF000;
+
+// This is an OAD Image.  Do not let this image share a page with the BLE Stack.
+if (isdefinedsymbol(ICALL_STACK0_START))
+{
+  define symbol ADJ_ICALL_STACK0_START = (ICALL_STACK0_START & PAGE_MASK);
+}
+
+if ( isdefinedsymbol(APP_IMAGE_START) )
+{
+  // For the External Flash use case, ICALL_STACK0_START may be used to determine
+  // the end of the application's flash region
+  if ( isdefinedsymbol(ICALL_STACK0_START) )
+  {
+    define symbol IMAGE_SIZE        = ADJ_ICALL_STACK0_START - (APP_IMAGE_START) - 1;
+  }
+  // Custom OAD Image sizes.
+  else if ( isdefinedsymbol(APP_IMAGE_SIZE) )
+  {
+    define symbol IMAGE_SIZE        = APP_IMAGE_SIZE;
+  }
+  else
+  {
+    if ( isdefinedsymbol(RTOS_ROM) )
+    {
+      // Default for RTOS in ROM build.  This assumes that the application is
+      // also using some space on page 31 (0x1F).
+      define symbol IMAGE_SIZE      = 0x5000;
+    }
+    else
+    {
+      // Default RTOS in Flash build.  This is the maximum size for the larger
+      // OAD image, assuming Stack image starts at address 0xF000.
+      define symbol IMAGE_SIZE      = 0x9000;
+    }
+  }
+
+  define symbol CHKSUM_START        = APP_IMAGE_START;
+  define symbol FLASH_END           = APP_IMAGE_START + IMAGE_SIZE - 1;
+}
+else
+{
+  if ( isdefinedsymbol(RTOS_ROM) )
+  {
+    // Default for OAD Image A region, RTOS in ROM size.
+    define symbol APP_IMAGE_START       = 0x0600;
+    define symbol FLASH_END           = 0x8FFF;
+
+    // Place Checksum/OAD header for Image A after RTOS code in page 0.
+    // Since Image A is fixed the CRC just a placeholder.
+    // Leave 16 byte dummy block, useful if Image A  made to be upgradeable.
+    define symbol CHKSUM_START = APP_IMAGE_START;
+  }
+  else
+  {
+    // Default for OAD Image B region, RTOS in Flash size.
+    define symbol APP_IMAGE_START         = 0x00009000;
+
+    if ( isdefinedsymbol(ICALL_STACK0_START) )
+    {
+      define symbol FLASH_END         = ADJ_ICALL_STACK0_START - 1;
+    }
+    else
+    {
+      // If not stack is defined, give image all flash excluding sector 31.
+      define symbol FLASH_END         = FLASH_START + FLASH_SIZE - 0x1001;
+    }
+
+    define symbol CHKSUM_START        = APP_IMAGE_START;
+  }
+}
+
+// OAD specific
+define symbol OAD_HDR_SIZE    = 12; // linker needs word alignment.
+define symbol OAD_HDR_START   = CHKSUM_START + 4;
+define symbol OAD_HDR_END     = OAD_HDR_START + OAD_HDR_SIZE - 1;
+
+define symbol INT_VEC_SIZE    = 64;
+define symbol INT_VEC_START   = OAD_HDR_START + OAD_HDR_SIZE;
+define symbol INT_VEC_END     = INT_VEC_START + INT_VEC_SIZE - 1;
+
+define symbol OAD_FLASH_START = INT_VEC_START + INT_VEC_SIZE;
+
+////////////////////////////////////////////////////////////////////////////////
+// Stack
+//
+
+define symbol STACK_SIZE           = 0x400;
+define symbol STACK_START          = RAM_END + 1;
+define symbol STACK_END            = STACK_START - STACK_SIZE;
+//
+define symbol STACK_TOP            = RAM_END + 1;
+export symbol STACK_TOP;
+
+////////////////////////////////////////////////////////////////////////////////
+// Flash Interrupt Vector Table
+//
+
+define symbol INTVEC_NUM_ENTRIES   = 50 + 1; // first entry is stack location
+define symbol INTVEC_SIZE          = INTVEC_NUM_ENTRIES + 4;
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Regions
+////////////////////////////////////////////////////////////////////////////////
+
+define memory mem with size = 4G;
+
+define region CHECKSUM        = mem:[from CHKSUM_START  to OAD_HDR_START - 1];
+define region FLASH_IMG_HDR   = mem:[from OAD_HDR_START to OAD_HDR_END];
+define region INT_VEC         = mem:[from INT_VEC_START to INT_VEC_END];
+
+if ( isdefinedsymbol(RTOS_ROM) )
+{
+  define region FLASH           = mem:[from OAD_FLASH_START to FLASH_END];
+}
+else
+{
+  define region FLASH           = mem:[from OAD_FLASH_START to FLASH_END];
+}
+
+define region RAM             = mem:[from RAM_START       to RAM_END];
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Placement
+////////////////////////////////////////////////////////////////////////////////
+
+// Image Checksum - Not used with oad_image_tool
+//place at start of CHECKSUM      { ro section .checksum };
+//keep                            { ro section .checksum };
+
+// Flash OAD Image Header - Not used with oad_image_tool
+//place at start of FLASH_IMG_HDR { readonly section IMAGE_HEADER };
+//keep                            { readonly section IMAGE_HEADER };
+
+// Code and RO Data
+place in FLASH { readonly };
+
+// CCFG - Not used.  See BIM for CCFG configuration.
+//place at end of FLASH_LAST_PAGE { readonly section .ccfg };
+//keep { section .ccfg };
+
+// Interrupt Vector Table
+place at start of INT_VEC { readonly section .intvec };
+keep                             { readonly section .intvec };
+
+// RAM Vector Table
+place at start of RAM { section .vtable_ram };
+
+// Runtime Stack
+define block CSTACK with alignment = 8, size = STACK_SIZE { section .stack };
+place at end of RAM { block CSTACK };
+
+// RW Data
+define block RWDATA { rw };
+place in RAM { block RWDATA };
+
+////////////////////////////////////////////////////////////////////////////////
+// Initialization
+////////////////////////////////////////////////////////////////////////////////
+
+initialize by copy { readwrite };
+
+do not initialize
+{
+  section .noinit,
+  section .stack,
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// The USE_TIRTOS_ROM symbol is defined internally in the build flow (using
+// --config_def USE_TIRTOS_ROM=1) for TI-RTOS applications whose appBLE.cfg file
+// specifies to use the ROM.
+//
+if (isdefinedsymbol(USE_TIRTOS_ROM)) {
+     include "TIRTOS_ROM.icf";
+}

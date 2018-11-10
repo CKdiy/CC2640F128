@@ -1,0 +1,694 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resource.explorer version="1.0" name="BLE-Stack 2.2.0 for SimpleLink wireless MCUs" dir="./../../../examples/" href="http://www.ti.com/lsds/ti/wireless_connectivity/bluetooth_bluetooth-ble/overview.page">
+    <filter id="TI">
+    	<devices>
+            <device>CC2650</device>
+			      <device>CC1350</device>
+		  </devices>
+      <search.tags>
+			  <tag>BLE</tag>
+			  <tag>Bluetooth</tag>
+			  <tag>Bluetooth low energy</tag>
+			  <tag>Bluetooth Smart</tag>
+		    </search.tags>
+    </filter>
+    <contents name="Bluetooth Smart" icon="./../tools/rex/ccs/bluetooth_icon.png">
+      <content name="BLE-Stack on ti.com" href="http://www.ti.com/tool/ble-stack">
+			  <type>weblink</type>
+		  </content>
+		  <content name="E2E BLE Support Forum" href="http://www.ti.com/ble-forum">
+			  <type>weblink</type>
+		  </content>
+      <contents name="Documentation">
+			  <content name="Documents" href="./../docs">
+				  <type>folder</type>
+			  </content>
+			  <content name="Bluetooth Smart Wiki" href="http://www.ti.com/ble-wiki">
+				  <type>weblink</type>
+			  </content>
+		  </contents>
+        <contents name="Boards" icon="./../tools/rex/ccs/bluetooth_icon.png">
+            <contents name="CC2650 Booster Pack" dir="./cc2650bp/" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                <filter>
+                    <devices>
+                        <device>CC2650</device>
+                        <device>CC2650 Booster Pack</device>
+                    </devices>
+                </filter>
+                <contents name="Simple NP" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_np_cc2650bp_app" desc="Simple Network Processor Application Project"
+                             href="./simple_np/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                    <content name="simple_np_cc2650bp_stack" desc="Simple Network Processor Stack Project"
+                             href="./simple_np/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+            </contents>
+            <contents name="CC2650 Evaluation Module" dir="./cc2650em/" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                <filter>
+                    <devices>
+                        <device>CC2650</device>
+                        <device>CC2650 Evaluation Module</device>
+                    </devices>
+                </filter>
+                <contents name="Blood Pressure" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="blood_pressure_cc2650em_app" desc="Blood Pressure Application Project"
+                             href="./blood_pressure/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="blood_pressure_cc2650em_stack" desc="Blood Pressure Stack Project"
+                             href="./blood_pressure/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Cycling Sensor" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="cycling_sensor_cc2650em_app" desc="Cycling Sensor Application Project"
+                             href="./cycling_sensor/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="cycling_sensor_cc2650em_stack" desc="Cycling Sensor Stack Project"
+                             href="./cycling_sensor/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Glucose Collector" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="glucose_collector_cc2650em_app" desc="Glucose Collector Application Project"
+                             href="./glucose_collector/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="glucose_collector_cc2650em_stack" desc="Glucose Collector Stack Project"
+                             href="./glucose_collector/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Glucose Sensor" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="glucose_sensor_cc2650em_app" desc="Glucose Sensor Application Project"
+                             href="./glucose_sensor/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="glucose_sensor_cc2650em_stack" desc="Glucose Sensor Stack Project"
+                             href="./glucose_sensor/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Heart Rate" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="heart_rate_cc2650em_app" desc="Heart Rate Application Project"
+                             href="./heart_rate/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="heart_rate_cc2650em_stack" desc="Heart Rate Stack Project"
+                             href="./heart_rate/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="HID Emulated Keyboard" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="hid_emu_kbd_cc2650em_app" desc="HID Emulated Keyboard Application Project"
+                             href="./hid_emu_kbd/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="hid_emu_kbd_cc2650em_stack" desc="HID Emulated Keyboard Stack Project"
+                             href="./hid_emu_kbd/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Host Test" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="host_test_cc2650em_app" desc="Host Test Application Project"
+                             href="./host_test/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="host_test_cc2650em_stack" desc="Host Test Stack Project"
+                             href="./host_test/ccs/stack">
+                        <type>project</type>
+                    </content>
+                </contents>
+                <contents name="KeyFob Demo" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="key_fob_cc2650em_app" desc="KeyFob Emulator Application Project"
+                             href="./key_fob/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="key_fob_cc2650em_stack" desc="KeyFob Emulator Stack Project"
+                             href="./key_fob/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="ProximityTag" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="proximity_tag_cc2650em_app" desc="Proximity Tag Application Project"
+                             href="./proximity_tag/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="proximity_tag_cc2650em_stack" desc="Proximity Tag Stack Project"
+                             href="./proximit_tag/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Running Sensor" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="running_sensor_cc2650em_app" desc="Running Sensor Application Project"
+                             href="./running_sensor/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="running_sensor_cc2650em_stack" desc="Running Sensor Stack Project"
+                             href="./running_sensor/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple AP" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_ap_cc2650em_app" desc="Simple Application Processor Project"
+                             href="./simple_ap/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SAP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SAP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Broadcaster" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_broadcaster_cc2650em_app" desc="Simple BLE Broadcaster Application Project"
+                             href="./simple_broadcaster/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="simple_broadcaster_cc2650em_stack" desc="Simple BLE Broadcaster Stack Project"
+                             href="./simple_broadcaster/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Central" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_central_cc2650em_app" desc="Simple BLE Central Application Project"
+                             href="./simple_central/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="simple_central_cc2650em_stack" desc="Simple BLE Central Stack Project"
+                             href="./simple_central/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Observer" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_observer_cc2650em_app" desc="Simple BLE Observer Application Project"
+                             href="./simple_observer/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="simple_observer_cc2650em_stack" desc="Simple BLE Observer Stack Project"
+                             href="./simpel_observer/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Peripheral" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_peripheral_cc2650em_app" desc="Simple BLE Peripheral Application Project"
+                             href="./simple_peripheral/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="simple_peripheral_cc2650em_stack" desc="Simple BLE Peripheral Stack Project"
+                             href="./simple_peripheral/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple NP" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_np_cc2650em_app" desc="Simple Network Processor Application Project"
+                             href="./simple_np/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                    <content name="simple_np_cc2650em_stack" desc="Simple Network Processor Stack Project"
+                             href="./simple_np/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple NP On Chip" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_np_onchip_cc2650em_app" desc="Simple Network Processor On Chip Application Project"
+                             href="./simple_np_onchip/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                    <content name="simple_np_onchip_cc2650em_stack" desc="Simple Network Processor On Chip Stack Project"
+                             href="./simple_np_onchip/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Thermometer" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="thermometer_cc2650em_app" desc="Thermometer Application Project"
+                             href="./thermometer/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="thermometer_cc2650em_stack" desc="Thermometer Stack Project"
+                             href="./thermometer/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Time App" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="time_app_cc2650em_app" desc="Time Application Project"
+                             href="./time_app/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="time_app_cc2650em_stack" desc="Time Stack Project"
+                             href="./time_app/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+            </contents>
+            <contents name="CC2650 Launch Pad" dir="./cc2650lp/" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                <filter>
+                    <devices>
+                        <device>CC2650</device>
+                        <device>CC2650 Launch Pad</device>
+                    </devices>
+                </filter>
+                <contents name="BIM" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="bim" desc="BIM for External Flash OAD" href="./../util/bim_extflash/cc2640/ccs">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Host Test" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="host_test_cc2650lp_app" desc="Host Test Application Project"
+                             href="./host_test/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="host_test_cc2650lp_stack" desc="Host Test Stack Project"
+                             href="./host_test/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple AP" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_ap_cc2650lp_app" desc="Simple Application Processor Project"
+                             href="./simple_np/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SAP</topic>
+                                <topic>OAD</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SAP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Broadcaster" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_broadcaster_cc2650lp_app" desc="Simple BLE Broadcaster Application Project"
+                             href="./simple_broadcaster/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="simple_broadcaster_cc2650lp_stack" desc="Simple BLE Broadcaster Stack Project"
+                             href="./simple_broadcaster/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple NP" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_np_cc2650lp_app" desc="Simple Network Processor Application Project"
+                             href="./simple_np/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                    <content name="simple_np_cc2650lp_stack" desc="Simple Network Processor Stack Project"
+                             href="./simple_np/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple NP On Chip" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_np_onchip_cc2650lp_app" desc="Simple Network Processor On Chip Application Project"
+                             href="./simple_np_onchip/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SAP</topic>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SAP</tag>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                    <content name="simple_np_onchip_cc2650lp_stack" desc="Simple Network Processor On Chip Stack Project"
+                             href="./simple_np_onchip/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SAP</topic>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SAP</tag>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Peripheral" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_peripheral_cc2650lp_app" desc="Simple BLE Peripheral Application Project"
+                             href="./simple_peripheral/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                    <content name="simple_peripheral_cc2650lp_stack" desc="Simple BLE Peripheral Stack Project"
+                             href="./simple_peripheral/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                </contents>
+            </contents>
+            <contents name="CC2650 Remote Control" dir="./cc2650rc/" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                <filter>
+                    <devices>
+                        <device>CC2650</device>
+                        <device>CC2650 Remote Control</device>
+                    </devices>
+                </filter>
+                <contents name="HID Advanced Remote" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="hid_adv_remote_cc2650rc_app" desc="HID Advanced Remote Application Project"
+                             href="./hid_adv_remote/ccs/app">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                    <content name="hid_adv_remote_cc2650rc_stack" desc="HID Advanced Remote Stack Project"
+                             href="./hid_adv_remote/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                        </filter>
+                    </content>
+                </contents>
+            </contents>
+            <contents name="CC2650 Sensor Tag Kit" dir="./cc2650stk/" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                <filter>
+                    <devices>
+                        <device>CC2650 Sensor Tag</device>
+                    </devices>
+                    <topics>
+                        <topic>Sensor Tag</topic>
+                    </topics>
+                </filter>
+                <content name="SensorTag Quickstart Cloud" desc="View live sensor data"
+                         href="https://quickstart.internetofthings.ibmcloud.com">
+                    <type>weblink</type>
+                </content>
+                <contents name="BIM" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="bim" desc="BIM for External Flash OAD" href="./../util/bim_extflash/cc2640/ccs">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Sensor Tag" icon="./../../tools/rex/ccs/bluetooth_icon.png"
+                          href="http://go-dsp.com/sensorTag/tearDown.html">
+                    <content name="sensor_tag_cc2650stk_app" desc="SensorTag Application Project"
+                             href="./sensortag/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                    <content name="sensor_tag_cc2650stk_app_audio" desc="SensorTag Audio Application Project"
+                             href="./sensortag/ccs/app_audio">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                    <content name="sensor_tag_cc2650stk_app_lcd" desc="SensorTag LCD Application Project"
+                             href="./sensortag/ccs/app_lcd">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                    <content name="sensor_tag_cc2650stk_app_light" desc="SensorTag Light Application Project"
+                             href="./sensortag/ccs/app_light">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                    <content name="sensor_tag_cc2650stk_stack" desc="SensorTag Stack Project"
+                             href="./sensortag/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Peripheral" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_peripheral_cc2650stk_app" desc="Simple Peripheral Application Project"
+                             href="./simple_peripheral/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                    <content name="simple_peripheral_cc2650stk_stack" desc="Simple Peripheral Stack Project"
+                             href="./simple_peripheral/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                </contents>
+            </contents>
+            <contents name="CC1350 Launch Pad" dir="./cc1350lp" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                <filter id="TI">
+                    <search.tags>
+                    </search.tags>
+                    <devices>
+                        <device>CC1350</device>
+                        <device>CC1350 Launch Pad</device>
+                    </devices>
+                </filter>
+                <contents name="BIM" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="bim_extFlash_cc1350lp_bim" desc="BIM for External Flash OAD" href="./../util/bim_extflash/cc1350/ccs">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>OAD</topic>
+                            </topics>
+                        </filter>
+                    </content>
+                </contents>
+                <contents name="Dual Image Concept" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="bim" desc="CC1350 BIM for Dual Image Concept"
+                             href="./../util/bim/cc1350lp/ccs">
+                        <type>project</type>
+                    </content>
+                    <content name="dual_image_concept_cc1350lp_app" desc="Dual Image Concept Application Project"
+                             href="./dual_image_concept/ccs/app">
+                            <type>project</type>
+                    </content>
+                    <content name="dual_image_concept_cc1350lp_stack" desc="Dual Image Concept Stack Project"
+                             href="./dual_image_concept/ccs/stack">
+                        <type>project</type>
+                    </content>
+                </contents>
+                <contents name="Host Test" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="host_test_cc1350lp_app" desc="Host Test Application Project"
+                             href="./host_test/ccs/app">
+                        <type>project</type>
+                    </content>
+                    <content name="host_test_cc1350lp_stack" desc="Host Test Stack Project"
+                             href="./host_test/ccs/stack">
+                        <type>project</type>
+                    </content>
+                </contents>
+                <contents name="Simple BLE Peripheral" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_peripheral_cc1350lp_app" desc="Simple BLE Peripheral Application Project"
+                             href="./simple_peripheral/ccs/app">
+                        <type>project</type>
+                    </content>
+                    <content name="simple_peripheral_cc1350lp_stack" desc="Simple BLE Peripheral Stack Project"
+                             href="./simple_peripheral/ccs/stack">
+                        <type>project</type>
+                    </content>
+                </contents>
+                <contents name="Simple NP" icon="./../../tools/rex/ccs/bluetooth_icon.png">
+                    <content name="simple_np_cc1350lp_app" desc="Simple Network Processor Application Project"
+                             href="./simple_np/ccs/app">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                    <content name="simple_np_cc1350lp_stack" desc="Simple Network Processor Stack Project"
+                             href="./simple_np/ccs/stack">
+                        <type>project</type>
+                        <filter>
+                            <topics>
+                                <topic>SNP</topic>
+                            </topics>
+                            <search.tags>
+                                <tag>SNP</tag>
+                            </search.tags>
+                        </filter>
+                    </content>
+                </contents>
+            </contents>
+        </contents>
+    </contents>
+</resource.explorer>

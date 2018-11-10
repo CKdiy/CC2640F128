@@ -1,0 +1,15 @@
+"C:\IAR\arm\bin\armproc.dll" 
+
+"C:\IAR\arm\bin\armxds2.dll" 
+
+"E:\BeelinkerCode\CC2640F128\Project\cc2650em\simple_observer\iar\app\FlashROM\Exe\simple_observer_cc2650em_app.out" 
+
+--plugin "C:\IAR\arm\bin\armbat.dll" 
+
+--device_macro "C:\IAR\arm\config\debugger\TexasInstruments\CC26x0.dmac" 
+
+--flash_loader "$PROJ_DIR$\..\..\..\..\..\tools\flashloader\FlashCC26xxF128RAM20_word_align.board" 
+
+
+
+

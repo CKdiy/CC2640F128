@@ -1,0 +1,165 @@
+/******************************************************************************
+
+ @file  bim_cc26xx.icf
+
+ @brief IAR ARM Linker Configuration File - BLE Application
+
+        Imported Symbols
+        Note: Linker defines are located in the IAR IDE project using
+        --config_def in Options->Linker->Extra Options.
+
+        CCxxxx:            Device Name (e.g. CC2650)
+
+        Exported Symbols
+        Note: Can be used as externs in C code.
+
+        STACK_TOP: Location of the top of RAM.
+
+ Group: WCS, BTS
+ Target Device: CC2650, CC2640
+
+ ******************************************************************************
+ 
+ Copyright (c) 2013-2018, Texas Instruments Incorporated
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+
+ *  Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+ *  Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+ *  Neither the name of Texas Instruments Incorporated nor the names of
+    its contributors may be used to endorse or promote products derived
+    from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ ******************************************************************************
+ Release Name: ble_sdk_2_02_02_25
+ Release Date: 2018-04-02 18:03:35
+ *****************************************************************************/
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Sizes
+////////////////////////////////////////////////////////////////////////////////
+
+define symbol RAM_SIZE             = 0x00005000;  // 20K
+define symbol FLASH_SIZE           = 0x00020000;  // 128K
+define symbol ROM_SIZE             = 0x0001C000;  // 115K
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Definitions
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// RAM
+//
+
+define symbol RAM_START            = 0x20000000;
+
+if ( isdefinedsymbol(ICALL_RAM0_START) )
+{
+  define symbol RAM_END            = (ICALL_RAM0_START-1);
+}
+else // Default
+{
+  define symbol RAM_END            = 0x200036FF;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Flash
+//
+
+// BIM is allocated Flash page 0 and 31.
+
+define symbol FLASH_PAGE0_START    = 0x00000000;
+define symbol FLASH_PAGE0_END      = 0x000000FF;
+
+define symbol FLASH_PAGE31_START   = 0x0001F000;
+define symbol FLASH_PAGE31_END     = 0x0001FFFF;
+
+////////////////////////////////////////////////////////////////////////////////
+// Stack
+//
+
+define symbol STACK_SIZE           = 0x400;
+define symbol STACK_START          = RAM_END + 1;
+define symbol STACK_END            = STACK_START - STACK_SIZE;
+define block CSTACK with alignment = 8, size = STACK_SIZE { section .stack };
+
+define symbol STACK_TOP            = RAM_END + 1;
+export symbol STACK_TOP;
+
+////////////////////////////////////////////////////////////////////////////////
+// Flash Interrupt Vector Table
+//
+
+define symbol INTVEC_NUM_ENTRIES   = 50 + 1; // first entry is stack location
+define symbol INTVEC_SIZE          = INTVEC_NUM_ENTRIES + 4;
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Regions
+////////////////////////////////////////////////////////////////////////////////
+
+define memory mem with size = 4G;
+
+define region RAM                  = mem:[from RAM_START to RAM_END];
+
+define region FLASH_PAGE0          = mem:[from FLASH_PAGE0_START
+                                          to   FLASH_PAGE0_END];
+
+define region FLASH_PAGE31         = mem:[from FLASH_PAGE31_START
+                                          to   FLASH_PAGE31_END];
+
+define region BIM                  = FLASH_PAGE0 | FLASH_PAGE31;
+
+////////////////////////////////////////////////////////////////////////////////
+// Memory Placement
+////////////////////////////////////////////////////////////////////////////////
+
+// Interrupt Vector Table
+place at address mem:FLASH_PAGE0_START { readonly section .intvec };
+keep                                   { readonly section .intvec };
+
+// CCFG
+place at end of FLASH_PAGE31           { readonly section .ccfg   };
+keep                                   { section .ccfg            };
+
+// RAM Vector Table
+place at start of RAM                  { section .vtable_ram      };
+
+// Stack
+place at end of RAM                    { block CSTACK             };
+
+place in BIM                           { readonly                 };
+place in RAM                           { readwrite                };
+
+////////////////////////////////////////////////////////////////////////////////
+// Initialization
+////////////////////////////////////////////////////////////////////////////////
+
+initialize by copy  { readwrite };
+
+do not initialize
+{
+  section .noinit,
+  section .stack,
+};
+
+////////////////////////////////////////////////////////////////////////////////

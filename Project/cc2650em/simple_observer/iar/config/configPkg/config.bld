@@ -1,0 +1,27 @@
+/* THIS IS A GENERATED FILE -- DO NOT EDIT */
+
+var target;    /* the target used for this build */
+
+/* configuro was passed the target's name explicitly */
+try {
+    target = xdc.module('iar.targets.arm.M3');
+}
+catch (e) {
+    throw new Error("Can't find the target named '" + 'iar.targets.arm.M3'
+                    + "' along the path '" + environment["xdc.path"]
+                    + "': please check the spelling of the target's name and that it exists along this path.");
+}
+if (!(target instanceof xdc.module("xdc.bld.ITarget").Module)) {
+    throw new Error("The module named 'iar.targets.arm.M3' exists but it's not a target: please check the spelling of the target's name");
+}
+
+/* configuro was passed compiler options explicitly */
+target.ccOpts.prefix = unescape("%20%20-D%20xBOARD_DISPLAY_EXCLUDE_UART%20%20%20-D%20CC2650DK_7ID%20%20%20-D%20CC26XX%20%20%20-D%20GAPROLE_TASK_STACK_SIZE%3D440%20%20%20-D%20HEAPMGR_SIZE%3D0%20%20%20-D%20ICALL_MAX_NUM_ENTITIES%3D6%20%20%20-D%20ICALL_MAX_NUM_TASKS%3D3%20%20%20-D%20POWER_SAVING%20%20%20-D%20USE_ICALL%20%20%20-D%20xBOARD_DISPLAY_EXCLUDE_LCD%20%20%20-D%20xDisplay_DISABLE_ALL%20%20%20-D%20xdc_runtime_Assert_DISABLE_ALL%20%20%20-D%20xdc_runtime_Log_DISABLE_ALL%20%20%20-D%20USE_RCOSC%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/controller/cc26xx/inc/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/inc/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/common/cc26xx/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/icall/inc/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/inc/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/profiles/roles/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/profiles/roles/cc26xx/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/target/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/hal/src/inc/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/hal/src/target/_common/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/hal/src/target/_common/cc26xx/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/hal/src/target/cc2650/rom/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/heapmgr/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/icall/src/inc/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/osal/src/inc/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/services/src/saddr/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/components/services/src/sdata/%20%20%20-I%20C%3A/ti/tirtos_cc13xx_cc26xx_2_21_01_08/products/cc26xxware_2_24_03_17272/%20%20%20-I%20C%3A/ti/tirtos_cc13xx_cc26xx_2_21_01_08/products/tidrivers_cc13xx_cc26xx_2_21_01_01/packages/%20%20%20-I%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/common/cc26xx/rcosc/%20%20%20") + target.ccOpts.prefix;
+
+/* configuro was passed linker options explicitly */
+target.lnkOpts.prefix = unescape("-o%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/FlashROM/Exe/simple_observer_cc2650em_app.out%20--map%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/FlashROM/List/simple_observer_cc2650em_app.map%20--config%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/common/cc26xx/iar/cc26xx_app.icf%20--keep%20__vector_table%20-f%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../config/configPkg/linker.cmd%20-f%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../config/iar_boundary.xcl%20E%3A/BeelinkerCode/CC2640F128/Project/cc2650em/simple_observer/iar/app/../../../../../src/rom/common_rom_releases/03282014/common_rom.symbols%20C%3A/ti/tirtos_cc13xx_cc26xx_2_21_01_08/products/cc26xxware_2_24_03_17272/driverlib/bin/iar/driverlib.lib%20--entry%20__iar_program_start%20--vfe%20--text_out%20locale%20") + target.lnkOpts.prefix;
+
+/* configuro was passed the target's rootDir explicitly */
+target.rootDir = 'C:/IAR/arm';
+
+Build.targets = [target];

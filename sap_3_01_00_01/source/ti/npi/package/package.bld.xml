@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  This file conforms to the DTD xdc/bld/build.dtd -->
+<package name="ti.npi" version="1, 0, 0" producerId="undefined">
+    <units>
+    </units>
+    <sources>
+        <srcFile name="package/package_ti.npi.c"/>
+        <srcFile name="npi_util.c"/>
+        <srcFile name="npi_task.c"/>
+        <srcFile name="npi_tl_cc26xx.c"/>
+        <srcFile name="npi_tl_uart_m_cc26xx.c"/>
+    </sources>
+    <configscripts>
+    </configscripts>
+    <makefiles>
+        <srcFile name="package.mak" src="package.bld"/>
+        <srcFile name="package/package.xdc.dep" src="package.xdc"/>
+        <srcFile name="package/package.cfg.dep" src="package.xdc"/>
+        <srcFile name="lib/debug/npi_uart_pm_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_pm_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_pm_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_pm_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_pm_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_pm_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="lib/debug/npi_uart_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/debug/npi_uart_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="lib/debug/npi_spi_pm_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_pm_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_pm_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_pm_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_pm_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_pm_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="lib/debug/npi_spi_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/debug/npi_spi_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="lib/release/npi_uart_pm_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/release/npi_uart_pm_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_pm_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_pm_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_pm_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_pm_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="lib/release/npi_uart_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/release/npi_uart_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/release/npi_uart_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="lib/release/npi_spi_pm_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/release/npi_spi_pm_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_pm_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_pm_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_pm_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_pm_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="lib/release/npi_spi_cc26xx.aem3.mak" src="package.bld"/>
+        <srcFile name="package/lib/lib/release/npi_spi_cc26xx/package/package_ti.npi.oem3.dep" src="package/package_ti.npi.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_cc26xx/npi_util.oem3.dep" src="npi_util.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_cc26xx/npi_task.oem3.dep" src="npi_task.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_cc26xx/npi_tl_cc26xx.oem3.dep" src="npi_tl_cc26xx.c"/>
+        <srcFile name="package/lib/lib/release/npi_spi_cc26xx/npi_tl_uart_m_cc26xx.oem3.dep" src="npi_tl_uart_m_cc26xx.c"/>
+        <srcFile name="package/rel/ti_npi.tar.gz.dep" src="package/rel/ti_npi.xdc.inc"/>
+    </makefiles>
+    <targets>
+        <target name="ti.targets.arm.elf.M3"
+            version="ti.targets.arm.elf.M3{1,0,5.2,7"
+            rawVersion="5.2.7"
+            platform="ti.platforms.simCM3"
+            isa="v7M"
+            suffix="em3"
+            rootDir="/opt/ti/cgtools/arm/ti-cgt-arm_5.2.7"
+            os="undefined"
+            rts="ti.targets.arm.rtsarm">
+            <model endian="little"
+                codeModel="thumb2"
+                dataModel="undefined"/>
+        </target>
+    </targets>
+    <libraries>
+    <library name="lib/debug/npi_uart_pm_cc26xx"
+        pname="lib/debug/npi_uart_pm_cc26xx.aem3"
+        profile="debug"
+        target="ti.targets.arm.elf.M3"/>
+    <library name="lib/debug/npi_uart_cc26xx"
+        pname="lib/debug/npi_uart_cc26xx.aem3"
+        profile="debug"
+        target="ti.targets.arm.elf.M3"/>
+    <library name="lib/debug/npi_spi_pm_cc26xx"
+        pname="lib/debug/npi_spi_pm_cc26xx.aem3"
+        profile="debug"
+        target="ti.targets.arm.elf.M3"/>
+    <library name="lib/debug/npi_spi_cc26xx"
+        pname="lib/debug/npi_spi_cc26xx.aem3"
+        profile="debug"
+        target="ti.targets.arm.elf.M3"/>
+    <library name="lib/release/npi_uart_pm_cc26xx"
+        pname="lib/release/npi_uart_pm_cc26xx.aem3"
+        profile="release"
+        target="ti.targets.arm.elf.M3"/>
+    <library name="lib/release/npi_uart_cc26xx"
+        pname="lib/release/npi_uart_cc26xx.aem3"
+        profile="release"
+        target="ti.targets.arm.elf.M3"/>
+    <library name="lib/release/npi_spi_pm_cc26xx"
+        pname="lib/release/npi_spi_pm_cc26xx.aem3"
+        profile="release"
+        target="ti.targets.arm.elf.M3"/>
+    <library name="lib/release/npi_spi_cc26xx"
+        pname="lib/release/npi_spi_cc26xx.aem3"
+        profile="release"
+        target="ti.targets.arm.elf.M3"/>
+    </libraries>
+    <configurations>
+    </configurations>
+    <executables>
+    </executables>
+    <tests>
+    </tests>
+    <releases relDir="package/rel/">
+    <release name="ti_npi"
+        pname="ti_npi.tar.gz"
+        label="default"
+    >
+        <file name="package/package.bld.xml"/>
+        <file name="package/build.cfg"/>
+        <file name="package/package.xdc.inc"/>
+        <file name="hal_defs.h"/>
+        <file name="hal_types.h"/>
+        <file name="npi_data.h"/>
+        <file name="npi_task.h"/>
+        <file name="npi_tl.h"/>
+        <file name="npi_tl_uart.h"/>
+        <file name="npi_util.h"/>
+        <file name="package.bld"/>
+        <file name="package/package.cfg.xdc.inc"/>
+        <file name="lib/debug/npi_uart_pm_cc26xx.aem3"/>
+        <file name="package/package_ti.npi.c"/>
+        <file name="npi_util.c"/>
+        <file name="npi_task.c"/>
+        <file name="npi_tl_cc26xx.c"/>
+        <file name="npi_tl_uart_m_cc26xx.c"/>
+        <file name="lib/debug/npi_uart_cc26xx.aem3"/>
+        <file name="lib/debug/npi_spi_pm_cc26xx.aem3"/>
+        <file name="lib/debug/npi_spi_cc26xx.aem3"/>
+        <file name="lib/release/npi_uart_pm_cc26xx.aem3"/>
+        <file name="lib/release/npi_uart_cc26xx.aem3"/>
+        <file name="lib/release/npi_spi_pm_cc26xx.aem3"/>
+        <file name="lib/release/npi_spi_cc26xx.aem3"/>
+    </release>
+    </releases>
+    <repositories>
+    </repositories>
+</package>

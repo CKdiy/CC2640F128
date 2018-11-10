@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<workspace>
+  <project>
+    <path>$WS_DIR$\bim_extflash.ewp</path>
+  </project>
+  <batchBuild>
+    <batchDefinition>
+      <name>All</name>
+      <member>
+        <project>bim_extflash</project>
+        <configuration>FlashOnlyLP</configuration>
+      </member>
+      <member>
+        <project>bim_extflash</project>
+        <configuration>FlashOnlyLP_BL</configuration>
+      </member>
+      <member>
+        <project>bim_extflash</project>
+        <configuration>FlashOnlyST</configuration>
+      </member>
+      <member>
+        <project>bim_extflash</project>
+        <configuration>FlashOnlyST_BL</configuration>
+      </member>
+    </batchDefinition>
+  </batchBuild>
+</workspace>
