@@ -74,6 +74,7 @@
 #include "tagmgr.h"
 #include <inc/hw_types.h>
 #include <inc/hw_fcfg1.h>
+#include "mems.h"
 /*********************************************************************
  * MACROS
  */
@@ -107,6 +108,7 @@
 // Internal Events for RTOS application
 #define SBO_KEY_CHANGE_EVT                    0x0001
 #define SBO_STATE_CHANGE_EVT                  0x0002
+#define SBO_MEMS_ACTIVE_EVT                   0x0004
 
 //User Send Interval Time
 #define DEFAULT_USER_TX_INTERVAL_TIME         5
@@ -190,6 +192,7 @@ void SimpleBLEObserver_initKeys(void);
 
 void SimpleBLEObserver_keyChangeHandler(uint8 keys);
 
+void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -254,8 +257,13 @@ void SimpleBLEObserver_init(void)
 
   // Create an RTOS queue for message from profile to be sent to app.
   appMsgQueue = Util_constructQueue(&appMsg);
-
-  Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+  
+  if(MemsOpen())
+  {
+	MemsClose();
+	Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+  }
+  //Board_initKeys(SimpleBLEObserver_keyChangeHandler);
 
   //获取当前设备的Mac地址，作为设备唯一识别ID
   getMacAddress(&userTxInf.devId[0]);
@@ -287,7 +295,7 @@ void SimpleBLEObserver_init(void)
   // Start the Device
   VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
 
-  Display_print0(dispHandle, 0, 0, "BLE Observer");
+  //Display_print0(dispHandle, 0, 0, "BLE Observer");
 }
 
 /*********************************************************************
@@ -396,7 +404,8 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
     case SBO_KEY_CHANGE_EVT:
       SimpleBLEObserver_handleKeys(0, pMsg->hdr.state);
       break;
-
+  	case SBO_MEMS_ACTIVE_EVT:
+	  break;
     default:
       // Do nothing.
       break;
@@ -583,6 +592,10 @@ void SimpleBLEObserver_keyChangeHandler(uint8 keys)
   SimpleBLEObserver_enqueueMsg(SBO_KEY_CHANGE_EVT, keys, NULL);
 }
 
+void SimpleBLEObserver_memsActiveHandler(uint8 pins)
+{
+  SimpleBLEObserver_enqueueMsg(SBO_MEMS_ACTIVE_EVT, pins, NULL);
+}
 
 /*********************************************************************
  * @fn      SimpleBLEObserver_enqueueMsg

@@ -90,7 +90,7 @@ extern const PIN_Config BoardGpioInitTable[];
 /* LCD  Board */
 #define Board_LCD_MODE                      IOID_4          /* P1.11 */
 #define Board_LCD_RST                       IOID_5          /* P1.13 */
-#define Board_LCD_CSN                       IOID_14         /* P1.17 */
+#define Board_LCD_CSN                       PIN_UNASSIGNED         /* P1.17 */
 /* UART Board */
 #define Board_UART_RX                       IOID_2          /* P1.7  */
 #define Board_UART_TX                       IOID_3          /* P1.9  */
@@ -114,7 +114,7 @@ extern const PIN_Config BoardGpioInitTable[];
 /* SD Card */
 #define Board_SDCARD_CSN                    IOID_30         /* P2.12 */
 /* Power Board */
-#define Board_3V3_EN                        IOID_13         /* P1.15 */
+#define Board_3V3_EN                        PIN_UNASSIGNED         /* P1.15 */
 /* PWM outputs */
 #define Board_PWMPIN0                       Board_DK_LED1
 #define Board_PWMPIN1                       Board_DK_LED2
@@ -138,6 +138,11 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_SX1278_RST                    IOID_27         /* RF1.15 */
 #define Board_SX1278_DIO0                   IOID_26         /* RF1.11 */
 #define Board_SX1278_CSN                    IOID_11 
+/* I2C Board */
+#define Board_I2C_SCL                       IOID_14			
+#define Board_I2C_SDA                       IOID_13			
+#define Board_I2C_INT                       IOID_18  
+
 /** ============================================================================
  *  Instance identifiers
  *  ==========================================================================*/

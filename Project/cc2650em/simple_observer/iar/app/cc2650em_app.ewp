@@ -1116,6 +1116,15 @@
             </file>
         </group>
         <group>
+            <name>MEMS</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\mems.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\mems.h</name>
+            </file>
+        </group>
+        <group>
             <name>PIN</name>
             <file>
                 <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\PIN.h</name>
