@@ -75,6 +75,10 @@
 #include <inc/hw_types.h>
 #include <inc/hw_fcfg1.h>
 #include "mems.h"
+#include "userprocessmgr.h"
+#include "sx1278_lora.h"
+#include <ti/drivers/Power.h>
+#include <ti/drivers/power/PowerCC26XX.h>
 /*********************************************************************
  * MACROS
  */
@@ -84,10 +88,12 @@
  */
 
 // Maximum number of scan responses
-#define DEFAULT_MAX_SCAN_RES                  6
+#define DEFAULT_MAX_SCAN_RES                  4
 
 // Scan duration in ms
-#define DEFAULT_SCAN_DURATION                 100
+#define DEFAULT_SCAN_DURATION_10ms            10
+#define DEFAULT_SCAN_DURATION_100ms           100
+
 
 // Discovery mode (limited, general, all)
 #define DEFAULT_DISCOVERY_MODE                DEVDISC_MODE_ALL
@@ -112,6 +118,10 @@
 
 //User Send Interval Time
 #define DEFAULT_USER_TX_INTERVAL_TIME         5
+#define DEFAULT_USER_MEMS_NOACTIVE_TIME       20     
+// 1000 ms
+#define RCOSC_CALIBRATION_PERIOD              1000
+#define DEFAULT_RFTRANSMIT_LEN                45
 /*********************************************************************
  * TYPEDEFS
  */
@@ -152,10 +162,21 @@ static ICall_Semaphore sem;
 // Clock object used to signal timeout
 static Clock_Struct keyChangeClock;
 
+// Clock instances for internal periodic events.
+static Clock_Struct userProcessClock;
+// Power Notify Object for wake-up callbacks
+Power_NotifyObj injectCalibrationPowerNotifyObj;
+
+static uint8_t isEnabled = FALSE;
+
 // Queue object used for app messages
 static Queue_Struct appMsg;
 static Queue_Handle appMsgQueue;
 
+static tUserProcessStates userProcess_State;
+static tUserProcessMode userProcessMode;
+tUserProcessMgr userProcessMgr;
+tUserNvramInf   userNvramInf;
 // Task configuration
 Task_Struct sboTask;
 Char sboTaskStack[SBO_TASK_STACK_SIZE];
@@ -168,7 +189,7 @@ static gapDevRec_t devList[DEFAULT_MAX_SCAN_RES];
 static tagInfStruct devInfList[DEFAULT_MAX_SCAN_RES];
 static observerInfStruct tagInf_t;
 static tagInfStruct userTxList[DEFAULT_MAX_SCAN_RES];
-
+static uint8_t rfRxTxBuf[DEFAULT_RFTRANSMIT_LEN];
 const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -193,6 +214,15 @@ void SimpleBLEObserver_initKeys(void);
 void SimpleBLEObserver_keyChangeHandler(uint8 keys);
 
 void SimpleBLEObserver_memsActiveHandler(uint8 pins);
+
+static void SimpleBLEObserver_userclockHandler(UArg arg);
+
+static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
+                                                 uint32_t *eventArg,
+                                                 uint32_t *clientArg);
+
+static void UserProcess_LoraInf_Get(void);
+static void UserProcess_LoraInf_Send(void);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -206,6 +236,73 @@ static const gapObserverRoleCB_t simpleBLERoleCB =
 /*********************************************************************
  * PUBLIC FUNCTIONS
  */
+
+
+/*********************************************************************
+ * @fn      RCOSC_enableCalibration
+ *
+ * @brief   enable calibration.  calibration timer will start immediately.
+ *
+ * @param   none
+ *
+ * @return  none
+ */
+void RCOSC_enableCalibration(void)
+{
+  if (!isEnabled)
+  {
+    isEnabled = TRUE;
+
+    // Set device's Sleep Clock Accuracy
+    HCI_EXT_SetSCACmd(500);
+
+  	Util_constructClock(&userProcessClock, SimpleBLEObserver_userclockHandler,
+                      RCOSC_CALIBRATION_PERIOD, 0, false, 0);
+
+    // Receive callback when device wakes up from Standby Mode.
+    Power_registerNotify(&injectCalibrationPowerNotifyObj, PowerCC26XX_AWAKE_STANDBY,
+                         (Power_NotifyFxn)rcosc_injectCalibrationPostNotify,
+                         NULL);
+
+
+    // Start clock for the RCOSC calibration injection.  Calibration must be
+    // done once every second by either the clock or by waking up from StandyBy
+    // Mode. To ensure that the device is always correctly calibrated the clock
+    // is started now but is only allowed to expire when a wake up event does
+    // not occur within the clock's duration.
+    Util_startClock(&userProcessClock);
+  }
+}
+
+/*********************************************************************
+ * @fn      rcosc_injectCalibrationPostNotify
+ *
+ * @brief   Callback for Power module state change events.
+ *
+ * @param   eventType - The state change.
+ * @param   clientArg - Not used.
+ *
+ * @return  Power_NOTIFYDONE
+ */
+static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
+                                                 uint32_t *eventArg,
+                                                 uint32_t *clientArg)
+{
+  // If clock is active at time of wake up,
+  if (Util_isActive(&userProcessClock))
+  {
+    // Stop injection of calibration - the wakeup has automatically done this.
+    Util_stopClock(&userProcessClock);
+  }
+
+  // Restart the clock in case delta between now and next wake up is greater
+  // than one second.
+  userProcessMgr.wakeUpFlg = TRUE;
+  Util_startClock(&userProcessClock);
+  // Wake up the application.
+  Semaphore_post(sem);
+  return Power_NOTIFYDONE;
+}
 
 /*********************************************************************
  * @fn      SimpleBLEObserver_createTask
@@ -243,14 +340,18 @@ void SimpleBLEObserver_createTask(void)
  * @return  none
  */
 void SimpleBLEObserver_init(void)
-{
+{  
 	// ******************************************************************
   // N0 STACK API CALLS CAN OCCUR BEFORE THIS CALL TO ICall_registerApp
   // ******************************************************************
   // Register the current thread as an ICall dispatcher application
   // so that the application can send and receive messages.
   ICall_registerApp(&selfEntity, &sem);
-
+  
+#ifdef USE_RCOSC
+	RCOSC_enableCalibration();
+#endif // USE_RCOSC
+	
   // Hard code the DB Address till CC2650 board gets its own IEEE address
   //uint8 bdAddress[B_ADDR_LEN] = { 0x44, 0x44, 0x44, 0x44, 0x44, 0x44 };
   //HCI_EXT_SetBDADDRCmd(bdAddress);
@@ -258,11 +359,6 @@ void SimpleBLEObserver_init(void)
   // Create an RTOS queue for message from profile to be sent to app.
   appMsgQueue = Util_constructQueue(&appMsg);
   
-  if(MemsOpen())
-  {
-	MemsClose();
-	Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-  }
   //Board_initKeys(SimpleBLEObserver_keyChangeHandler);
 
   //获取当前设备的Mac地址，作为设备唯一识别ID
@@ -275,6 +371,18 @@ void SimpleBLEObserver_init(void)
   tagInf_t.index         = 0;
   tagInf_t.tagNum        = 0;
   tagInf_t.tagInfBuf_t   = devInfList;
+  userProcess_State      = USER_PROCESS_IDLE;
+  userProcessMode        = USER_PROCESS_IDLE_MODE;
+
+  userProcessMgr.abNormalScanTime = 0;
+  userProcessMgr.memsActiveFlg = FALSE;
+  userProcessMgr.wakeUpFlg     = FALSE;
+  userProcessMgr.clockCounter  = 0;
+  userProcessMode = USER_PROCESS_IDLE_MODE;
+  
+  userNvramInf.sleeptime = RCOSC_CALIBRATION_PERIOD/1000;
+  userNvramInf.txinterval= DEFAULT_USER_TX_INTERVAL_TIME;
+  
   // Setup Observer Profile
   {
     uint8 scanRes = DEFAULT_MAX_SCAN_RES;
@@ -283,8 +391,8 @@ void SimpleBLEObserver_init(void)
   }
 
   // Setup GAP
-  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION);
-  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION);
+  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_10ms);
+  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_10ms);
   
   // add a white list entry
   if(DEFAULT_DISCOVERY_WHITE_LIST)
@@ -309,6 +417,7 @@ void SimpleBLEObserver_init(void)
  */
 static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 {
+  uint8 res;  
   // Initialize application
   SimpleBLEObserver_init();
 
@@ -356,7 +465,112 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
         ICall_free(pMsg);
       }
     }
+	
+	switch(userProcessMode)
+	{
+		case USER_PROCESS_IDLE_MODE:
+	  		break;
+			
+		case USER_PROCESS_NORAMAL_MODE:
+		 	{
+			    res = MemsOpen();
+			  	if(!res)
+				{
+				    /* reset or enter into  ABNORMAL_MODE*/
+				  	userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+					break;
+				}
+				
+				/* Memory is freed after initialization */
+				MemsClose();
+				
+				res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+				if(!res)
+				{
+				  	userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+					break;					
+				}  
+				
+				// Setup GAP
+  				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
+  				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
+				
+				GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      			DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      			DEFAULT_DISCOVERY_WHITE_LIST );
+				
+				userProcessMode = USER_PROCESS_ACTIVE_MODE;					
+		 	}	  
+	  		break;
+			
+	    case USER_PROCESS_ABNORMAL_MODE:
+		  	{
+		  		;
+		  	}
+			break;
+			
+	    case USER_PROCESS_ACTIVE_MODE:
+		  	{
+				/* 定时休眠唤醒,唤醒后自动打开搜索  */              							
+				if(userProcessMgr.wakeUpFlg == TRUE)
+				{
+				    userProcessMgr.clockCounter ++;
+					tagInf_t.index ++;
+					
+				    userProcessMgr.wakeUpFlg = FALSE;
+					
+				   	if(userProcessMgr.clockCounter >= userNvramInf.txinterval - 1)
+					{
+					  	userProcessMgr.clockCounter = 0;
+						UserProcess_LoraInf_Send();
+						while(sx1278Lora_Process() != RFLR_STATE_TX_DONE);
+						sx1278Lora_EntryRx();
+						while(sx1278Lora_Process() != RFLR_STATE_RX_DONE);
+						UserProcess_LoraInf_Get();
+						
+						if(userProcessMgr.memsActiveFlg == TRUE)
+						{
+							res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+							if(!res)
+							{
+				  				userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+								break;	
+							}
+							userProcessMgr.memsActiveFlg = FALSE;
+						}			
+					}
+					
+					if(userProcessMgr.memsActiveFlg == TRUE)
+					{
+						userProcessMgr.memsNoActiveCounter = 0;				
+					}
+					else
+					{
+						userProcessMgr.memsNoActiveCounter ++;
+						if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
+						{
+							userProcessMode = USER_PROCESS_SLEEP_MODE;
+						}
+					}
+					
+					GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      				DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      				DEFAULT_DISCOVERY_WHITE_LIST );				
+				}
+		  	}
+			break;
+			
+	    case USER_PROCESS_SLEEP_MODE:
+		  	{
+		  		;
+		  	}
+			break;	
+			
+		default:
+	 		break;
+	}  
   }
+  
 }
 
 /*********************************************************************
@@ -405,6 +619,8 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
       SimpleBLEObserver_handleKeys(0, pMsg->hdr.state);
       break;
   	case SBO_MEMS_ACTIVE_EVT:
+	  userProcessMgr.memsActiveFlg = TRUE;
+	  Mems_ActivePin_Disable();
 	  break;
     default:
       // Do nothing.
@@ -454,10 +670,13 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
   {
     case GAP_DEVICE_INIT_DONE_EVENT:
       {
-		//设备初始化完成即开启扫描
-		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-       									DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                       	DEFAULT_DISCOVERY_WHITE_LIST ); 
+		if(USER_PROCESS_IDLE == userProcess_State)
+		{
+			//设备上电初始化完成即开启扫描,扫描时间10ms
+			GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      		DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      		DEFAULT_DISCOVERY_WHITE_LIST );
+		}
       }
       break;
 
@@ -473,29 +692,91 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
     case GAP_DEVICE_DISCOVERY_EVENT:
       {
       	// discovery complete
-		//涮选出本次搜索rssi最大设备并暂存到用户区
- 		if(userTxInf.txTagNum == DEFAULT_DISCOVERY_MODE)
- 		    return;
+		switch(userProcess_State)
+		{
+			case USER_PROCESS_IDLE :
+			{
+				if(tagInf_t.tagNum < 1)
+				{
+				    GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      				DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      				DEFAULT_DISCOVERY_WHITE_LIST );
+								
+					userProcessMgr.abNormalScanTime ++;
+					userProcess_State = USER_PROCESS_READY;
+				}
+				else
+				{
+					tagInf_t.tagNum = 0;
+					scanRes = 0;
+					userProcess_State = USER_PROCESS_RUNNING;
+					userProcessMode   = USER_PROCESS_NORAMAL_MODE;
+				}		 
+			}
+			  break; 
+			  
+			case USER_PROCESS_RUNNING :
+			{	  
+			  	if(scanRes == 0)
+				{
+					userProcess_State = USER_PROCESS_READY;
+					userProcessMgr.abNormalScanTime = 1;		
+				}
+				
+				//涮选出本次搜索rssi最大设备并暂存到用户区
+ 				if(userTxInf.txTagNum >= DEFAULT_MAX_SCAN_RES)
+ 		    		return;  
  		
- 		for(; scanRes>0; scanRes--)
- 		{
- 			if(scanRes -1 == 0)
- 			{
- 				memcpy(&userTxInf.tagInfBuf_t[userTxInf.txTagNum], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));	
- 				continue;
- 			}
- 			else
- 			{
- 			  	if(tagInf_t.tagInfBuf_t[scanRes-1].rssi > tagInf_t.tagInfBuf_t[scanRes-2].rssi)
- 					memcpy(&tagInf_t.tagInfBuf_t[scanRes-2], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));							
- 			}		  
- 		}		
-		userTxInf.txTagNum ++;
- 		
-		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                       DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                       DEFAULT_DISCOVERY_WHITE_LIST );  	 		
-      }
+ 				for(; scanRes>0; scanRes--)
+ 				{
+ 					if(scanRes -1 == 0)
+ 					{
+ 						memcpy(&userTxInf.tagInfBuf_t[userTxInf.txTagNum], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));	
+ 						continue;
+ 					}
+ 					else
+ 					{
+ 			  			if(tagInf_t.tagInfBuf_t[scanRes-1].rssi > tagInf_t.tagInfBuf_t[scanRes-2].rssi)
+ 							memcpy(&tagInf_t.tagInfBuf_t[scanRes-2], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));							
+ 					}		  
+ 				}		
+				userTxInf.txTagNum ++;
+			}
+			break;
+			  
+			case USER_PROCESS_READY: 
+			{
+				if(tagInf_t.tagNum < 1 )
+				{
+					if(userProcessMgr.abNormalScanTime > 1)
+					{
+						userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+						userProcessMgr.abNormalScanTime = 0;
+					}
+					else if(userProcessMgr.abNormalScanTime == 1)
+					{
+						Task_sleep(10*1000/Clock_tickPeriod);
+				    	userProcessMgr.abNormalScanTime ++;
+						//Scan Again
+						GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      				DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      			 	DEFAULT_DISCOVERY_WHITE_LIST );					
+					}
+				}
+				else
+				{
+					tagInf_t.tagNum = 0;
+					scanRes = 0;
+					userProcess_State = USER_PROCESS_RUNNING;
+					userProcessMode   = USER_PROCESS_NORAMAL_MODE;		
+				}				 		
+			}
+			break;
+			  
+			default:
+			  break;
+      	}
+	  }
       break;
 
     default:
@@ -568,9 +849,8 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
 		majoroffset = BEELINKER_ADVMAJOR_OFFSET; 
 		memcpy((void *)(&tagInf_t.tagInfBuf_t[scanRes].major[0]), (void *)&ptr[majoroffset], sizeof(uint32));
  		
-		tagInf_t.index ++;
 		tagInf_t.tagInfBuf_t[scanRes].tagIndex = tagInf_t.index;
-		tagInf_t.tagInfBuf_t[scanRes].rssi     = rssi;
+		tagInf_t.tagInfBuf_t[scanRes].rssi     = 0xFF - rssi;
  		
 		// Increment scan result count
 		scanRes++;
@@ -597,6 +877,20 @@ void SimpleBLEObserver_memsActiveHandler(uint8 pins)
   SimpleBLEObserver_enqueueMsg(SBO_MEMS_ACTIVE_EVT, pins, NULL);
 }
 
+/*********************************************************************
+ * @fn      SimpleBLEPeripheral_clockHandler
+ *
+ * @brief   Handler function for clock timeouts.
+ *
+ * @param   arg - event type
+ *
+ * @return  None.
+ */
+static void SimpleBLEObserver_userclockHandler(UArg arg)
+{
+  Util_startClock(&userProcessClock);
+  PowerCC26XX_injectCalibration(); 
+}
 /*********************************************************************
  * @fn      SimpleBLEObserver_enqueueMsg
  *
@@ -625,6 +919,16 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t state,
   }
 
   return FALSE;
+}
+
+static void UserProcess_LoraInf_Get(void)
+{
+;
+}
+
+static void UserProcess_LoraInf_Send(void)
+{
+;
 }
 
 /*********************************************************************

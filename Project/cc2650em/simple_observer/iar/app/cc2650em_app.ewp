@@ -372,6 +372,7 @@
                     <state>$CC26XXWARE$</state>
                     <state>$TI_RTOS_DRIVERS_BASE$</state>
                     <state>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\rcosc</state>
+                    <state>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1063,9 +1064,15 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\rcosc\rcosc_calibration.c</name>
+            <excluded>
+                <configuration>FlashROM</configuration>
+            </excluded>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\rcosc\rcosc_calibration.h</name>
+            <excluded>
+                <configuration>FlashROM</configuration>
+            </excluded>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\simple_observer.c</name>
