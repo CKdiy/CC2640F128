@@ -58,6 +58,7 @@ typedef struct
 	uint8 clockCounter;
 	uint8 memsActiveFlg;
 	uint8 memsNoActiveCounter;
+	uint8 memsActiveCounter;
 	uint8 wakeUpFlg;
 	uint8 rfStatusFlg;
 }tUserProcessMgr;

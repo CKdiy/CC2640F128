@@ -119,9 +119,11 @@
 
 //User Send Interval Time
 #define DEFAULT_USER_TX_INTERVAL_TIME         5
-#define DEFAULT_USER_MEMS_NOACTIVE_TIME       20     
+#define DEFAULT_USER_MEMS_ACTIVE_TIME         2 
+#define DEFAULT_USER_MEMS_NOACTIVE_TIME       20  
 // 1000 ms
 #define RCOSC_CALIBRATION_PERIOD              1000
+#define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define DEFAULT_RFTRANSMIT_LEN                45
 /*********************************************************************
  * TYPEDEFS
@@ -554,7 +556,14 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						userProcessMgr.memsNoActiveCounter ++;
 						if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
 						{
+						    Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
+							sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+							
 							userProcessMode = USER_PROCESS_SLEEP_MODE;
+							userProcessMgr.memsActiveCounter = 0;
+							tagInf_t.index = 0;
+							userProcessMgr.clockCounter = 0;
+							break;
 						}
 					}
 					
@@ -588,7 +597,34 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			
 	    case USER_PROCESS_SLEEP_MODE:
 		  	{
-		  		;
+				if(userProcessMgr.wakeUpFlg == TRUE)
+				{	
+				  	userProcessMgr.wakeUpFlg = FALSE;
+					
+					if(userProcessMgr.memsActiveFlg == TRUE)
+					{
+						userProcessMgr.memsActiveCounter ++;
+						userProcessMgr.memsActiveFlg = FALSE;
+						
+						res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+						if(!res)
+						{
+							userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+							break;	
+						}
+						
+						if(userProcessMgr.memsActiveCounter >= DEFAULT_USER_MEMS_ACTIVE_TIME)
+						{
+						    Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD);
+							
+							userProcessMode = USER_PROCESS_ACTIVE_MODE;
+						}				
+					}
+					else
+					{
+						userProcessMgr.memsActiveCounter = 0;
+					}
+				}
 		  	}
 			break;	
 			
