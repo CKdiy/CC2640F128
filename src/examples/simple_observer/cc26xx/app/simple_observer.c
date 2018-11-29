@@ -115,6 +115,7 @@
 #define SBO_KEY_CHANGE_EVT                    0x0001
 #define SBO_STATE_CHANGE_EVT                  0x0002
 #define SBO_MEMS_ACTIVE_EVT                   0x0004
+#define SBO_LORA_STATUSPIN_EVT                0x0008
 
 //User Send Interval Time
 #define DEFAULT_USER_TX_INTERVAL_TIME         5
@@ -191,6 +192,8 @@ static observerInfStruct tagInf_t;
 static tagInfStruct userTxList[DEFAULT_MAX_SCAN_RES];
 static uint8_t rfRxTxBuf[DEFAULT_RFTRANSMIT_LEN];
 const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
+const uint8_t lrtag_preFix[2] = {0xFE, 0xBE};
+const uint8_t lrtag_sufFix[2] = {0x0D, 0x0A};
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
@@ -214,6 +217,7 @@ void SimpleBLEObserver_initKeys(void);
 void SimpleBLEObserver_keyChangeHandler(uint8 keys);
 
 void SimpleBLEObserver_memsActiveHandler(uint8 pins);
+void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 
 static void SimpleBLEObserver_userclockHandler(UArg arg);
 
@@ -367,7 +371,8 @@ void SimpleBLEObserver_init(void)
   userTxInf.status       = 0;
   userTxInf.txTagNum     = 0;
   userTxInf.tagInfBuf_t  = userTxList;
-  userTxInf.interval     = DEFAULT_USER_TX_INTERVAL_TIME;
+  userTxInf.interval[0]  = DEFAULT_USER_TX_INTERVAL_TIME >> 8;
+  userTxInf.interval[1]  = DEFAULT_USER_TX_INTERVAL_TIME & (0xFF);
   tagInf_t.index         = 0;
   tagInf_t.tagNum        = 0;
   tagInf_t.tagInfBuf_t   = devInfList;
@@ -377,6 +382,7 @@ void SimpleBLEObserver_init(void)
   userProcessMgr.abNormalScanTime = 0;
   userProcessMgr.memsActiveFlg = FALSE;
   userProcessMgr.wakeUpFlg     = FALSE;
+  userProcessMgr.rfStatusFlg   = FALSE;
   userProcessMgr.clockCounter  = 0;
   userProcessMode = USER_PROCESS_IDLE_MODE;
   
@@ -491,6 +497,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					break;					
 				}  
 				
+				sx1278Init();
+				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+				
 				// Setup GAP
   				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
   				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
@@ -519,14 +528,10 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					
 				    userProcessMgr.wakeUpFlg = FALSE;
 					
-				   	if(userProcessMgr.clockCounter >= userNvramInf.txinterval - 1)
+				   	if(userProcessMgr.clockCounter >= userNvramInf.txinterval)
 					{
 					  	userProcessMgr.clockCounter = 0;
 						UserProcess_LoraInf_Send();
-						while(sx1278Lora_Process() != RFLR_STATE_TX_DONE);
-						sx1278Lora_EntryRx();
-						while(sx1278Lora_Process() != RFLR_STATE_RX_DONE);
-						UserProcess_LoraInf_Get();
 						
 						if(userProcessMgr.memsActiveFlg == TRUE)
 						{
@@ -556,6 +561,27 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                       				DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                       				DEFAULT_DISCOVERY_WHITE_LIST );				
+				}
+				
+				if(userProcessMgr.rfStatusFlg == TRUE)
+				{
+				  	switch(sx1278Lora_Process())
+					{
+						case RFLR_STATE_TX_DONE:
+							sx1278Lora_EntryRx();
+							sx1278Lora_SetRFStatus(RFLR_STATE_RX_RUNNING);
+							userProcessMgr.rfStatusFlg = FALSE;
+							break;
+							
+						case RFLR_STATE_RX_DONE:
+						  	UserProcess_LoraInf_Get();
+						  	sx1278_StatusPin_Disable();
+						  	sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+							break;
+						  
+						default:
+					  		break;
+					}
 				}
 		  	}
 			break;
@@ -622,6 +648,8 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  userProcessMgr.memsActiveFlg = TRUE;
 	  Mems_ActivePin_Disable();
 	  break;
+  	case  SBO_LORA_STATUSPIN_EVT:
+	  userProcessMgr.rfStatusFlg = TRUE;  
     default:
       // Do nothing.
       break;
@@ -736,7 +764,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
  					}
  					else
  					{
- 			  			if(tagInf_t.tagInfBuf_t[scanRes-1].rssi > tagInf_t.tagInfBuf_t[scanRes-2].rssi)
+ 			  			if(tagInf_t.tagInfBuf_t[scanRes-1].rssi < tagInf_t.tagInfBuf_t[scanRes-2].rssi)
  							memcpy(&tagInf_t.tagInfBuf_t[scanRes-2], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));							
  					}		  
  				}		
@@ -850,6 +878,7 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
 		memcpy((void *)(&tagInf_t.tagInfBuf_t[scanRes].major[0]), (void *)&ptr[majoroffset], sizeof(uint32));
  		
 		tagInf_t.tagInfBuf_t[scanRes].tagIndex = tagInf_t.index;
+		
 		tagInf_t.tagInfBuf_t[scanRes].rssi     = 0xFF - rssi;
  		
 		// Increment scan result count
@@ -877,6 +906,10 @@ void SimpleBLEObserver_memsActiveHandler(uint8 pins)
   SimpleBLEObserver_enqueueMsg(SBO_MEMS_ACTIVE_EVT, pins, NULL);
 }
 
+void SimpleBLEObserver_loraStatusHandler(uint8 pins)
+{
+  SimpleBLEObserver_enqueueMsg(SBO_LORA_STATUSPIN_EVT, pins, NULL);
+}
 /*********************************************************************
  * @fn      SimpleBLEPeripheral_clockHandler
  *
@@ -921,14 +954,114 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t state,
   return FALSE;
 }
 
+#define LORATAT_MACADDRE_LEN    6
+
 static void UserProcess_LoraInf_Get(void)
 {
-;
+	uint8_t size;
+	uint8_t len;
+	uint8_t crc;
+	uint8_t *ptr;
+	uint8_t tmpCnt;
+	uint8_t cmd;
+	uint8_t i = 0;
+	
+	ptr = sx1278Lora_GetRxData(&size);
+	
+	if(ptr == NULL)
+		return;
+	
+	while(i < size)
+	{
+		if(!memcmp(&ptr[i], lrtag_preFix, sizeof(lrtag_preFix)))
+			break;
+		i ++;		
+	}
+	
+	tmpCnt = i + sizeof(lrtag_preFix);
+	
+	cmd = ptr[tmpCnt];
+	
+	len = ptr[tmpCnt + 1];
+	
+	if ((size - i) < sizeof(lrtag_preFix) + sizeof(cmd) + sizeof(len) + len + sizeof(crc) + sizeof(lrtag_sufFix)) // PreFix + LEN + CMD + CRC + SufFix    
+		return;
+	
+	for(i=0; i<len + sizeof(uint16_t); i++)
+		crc += ptr[tmpCnt + i];
+		  
+	 if(crc != ptr[tmpCnt + sizeof(uint16_t) + len])
+		return;
+
+	memset(rfRxTxBuf, 0, DEFAULT_RFTRANSMIT_LEN);
+	memcpy(rfRxTxBuf, &ptr[tmpCnt+sizeof(uint16_t)], len);
+	
+	switch(cmd)
+	{
+		case TYPE_LORATAUPRESP:
+			if(!memcmp(rfRxTxBuf, &userTxInf.devId[0], LORATAT_MACADDRE_LEN))
+			  ;//Led flash
+			break;
+			
+		default:
+			break;
+	}
+	
 }
 
 static void UserProcess_LoraInf_Send(void)
 {
-;
+	uint8_t *ptr;
+	uint8_t crc;
+	uint8_t len;
+	uint8_t offset;
+	uint8_t i;
+	
+	ptr = rfRxTxBuf;
+	crc = 0;
+	offset = 0;
+	
+	memcpy(ptr, lrtag_preFix, sizeof(lrtag_preFix));
+	ptr += sizeof(lrtag_preFix);
+	
+	*ptr = TYPE_LORATAGUP;
+	crc += *ptr++;
+	
+	*ptr = userTxInf.txTagNum * 7 + 10;//7 = sizeof(tagInfStruct) 
+	crc += *ptr++;
+	
+	memcpy(ptr, &userTxInf.devId[0], 10);
+	for(i=0; i<10; i++)
+		crc += *ptr++;
+	
+	if(userTxInf.txTagNum > 0)
+	{
+	   	for(i=0; i<userTxInf.txTagNum; i++)
+		{
+			userTxInf.tagInfBuf_t[i].tagIndex = ntohs(userTxInf.tagInfBuf_t[i].tagIndex); 
+			memcpy(ptr + offset, &userTxInf.tagInfBuf_t[i].tagIndex, 7);
+			offset += 7;	
+		}		
+		
+		for(i=0; i<userTxInf.txTagNum * 7; i++)				    
+			crc += *ptr++;	
+				
+		userTxInf.txTagNum = 0;
+	}
+	
+	*ptr++ = crc;
+	
+	memcpy(ptr, lrtag_sufFix, sizeof(lrtag_sufFix));
+	ptr += sizeof(lrtag_sufFix);
+	
+	len = ptr - rfRxTxBuf;
+	if(len <= DEFAULT_RFTRANSMIT_LEN)
+	{
+		sx1278Lora_EntryTx();
+	  	sx1278Lora_SetRFStatus(RFLR_STATE_TX_RUNNING);
+		sx1278Lora_RFSendBuf(rfRxTxBuf, len);
+		sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+	}	  	 	
 }
 
 /*********************************************************************

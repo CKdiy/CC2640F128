@@ -36,10 +36,10 @@
  */
 typedef struct
 {
+   	uint16_t tagIndex;      //tag接收序列
 	uint8_t rssi;	
 	uint8_t major[2];	     	
 	uint8_t minor[2];
-   	uint16_t tagIndex;      //tag接收序列
 }tagInfStruct;
 
 /**
@@ -58,8 +58,8 @@ typedef struct
 typedef struct
 {   
     uint8_t  devId[6];          //设备地址 
-    uint8_t  interval;	        //lora上传间隔时间,单位：秒
-    uint8_t  status;            // sos状态 & 电池电量 ？
+	uint8_t  status;            // sos状态 & 电池电量 ？
+    uint8_t  interval[2];	    //lora上传间隔时间,单位：秒
     uint8_t  txTagNum;          // txTagNum <= 4  上传Tag数量
 	tagInfStruct *tagInfBuf_t;  // 单次上传的Tag信息
 }userTxStruct;

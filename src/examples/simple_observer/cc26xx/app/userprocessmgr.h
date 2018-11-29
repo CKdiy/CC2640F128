@@ -45,6 +45,13 @@ typedef enum
 	USER_PROCESS_SLEEP_MODE,
 }tUserProcessMode;
 
+enum
+{    
+    TYPE_LORATAGUP          = 0x01,//¨¦¨ª¡¤Y?¡§¨¦?¡ä?LORATAG??
+    
+    TYPE_LORATAUPRESP       = 0x81,//¨ª?1????¡äLORATAG??
+};
+
 typedef struct 
 {
 	uint8 abNormalScanTime;	
@@ -52,6 +59,7 @@ typedef struct
 	uint8 memsActiveFlg;
 	uint8 memsNoActiveCounter;
 	uint8 wakeUpFlg;
+	uint8 rfStatusFlg;
 }tUserProcessMgr;
 
 typedef struct 
@@ -59,6 +67,9 @@ typedef struct
 	uint8 txinterval;
 	uint8 sleeptime;
 }tUserNvramInf;
+
+#define ntohs(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )
+#define htons(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )
 
 /*********************************************************************
  * VARIABLES
