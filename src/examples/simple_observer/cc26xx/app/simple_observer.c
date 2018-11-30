@@ -124,6 +124,7 @@
 // 1000 ms
 #define RCOSC_CALIBRATION_PERIOD              1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
+#define RCOSC_CALIBRATION_PERIOD_15s          15000
 #define DEFAULT_RFTRANSMIT_LEN                45
 /*********************************************************************
  * TYPEDEFS
@@ -486,6 +487,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				{
 				    /* reset or enter into  ABNORMAL_MODE*/
 				  	userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+					Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);
 					break;
 				}
 				
@@ -496,6 +498,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				if(!res)
 				{
 				  	userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+					Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);
 					break;					
 				}  
 				
@@ -541,6 +544,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							if(!res)
 							{
 				  				userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+								Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);
 								break;	
 							}
 							userProcessMgr.memsActiveFlg = FALSE;
