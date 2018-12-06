@@ -182,7 +182,8 @@ bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB)
 
 void sx1278_StatusPin_Disable(void)
 { 
-    PIN_close(RFStatusPin);
+    if(RFStatusPin)
+    	PIN_close(RFStatusPin);
 	
     sx1278RFStatusPinTable[0] =  Board_SX1278_DIO0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_OPENDRAIN;
 	

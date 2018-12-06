@@ -482,6 +482,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			
 		case USER_PROCESS_NORAMAL_MODE:
 		 	{
+			    sx1278Init();
+				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+				
 			    res = MemsOpen();
 			  	if(!res)
 				{
@@ -501,9 +504,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);
 					break;					
 				}  
-				
-				sx1278Init();
-				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
 				
 				// Setup GAP
   				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
@@ -533,9 +533,30 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					
 				    userProcessMgr.wakeUpFlg = FALSE;
 					
+					if(userProcessMgr.memsActiveFlg == TRUE)
+					{
+						userProcessMgr.memsNoActiveCounter = 0;				
+					}
+					else
+					{
+						userProcessMgr.memsNoActiveCounter ++;
+						if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
+						{
+						    Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
+							sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+							userProcessMgr.memsActiveFlg = FALSE;
+							userProcessMode = USER_PROCESS_SLEEP_MODE;
+							userProcessMgr.memsActiveCounter = 0;
+							tagInf_t.index = 0;
+							userProcessMgr.clockCounter = 0;
+							break;
+						}
+					}
+					
 				   	if(userProcessMgr.clockCounter >= userNvramInf.txinterval)
 					{
 					  	userProcessMgr.clockCounter = 0;
+						sx1278_StatusPin_Disable();
 						UserProcess_LoraInf_Send();
 						
 						if(userProcessMgr.memsActiveFlg == TRUE)
@@ -550,30 +571,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							userProcessMgr.memsActiveFlg = FALSE;
 						}			
 					}
-					
-					if(userProcessMgr.memsActiveFlg == TRUE)
-					{
-						userProcessMgr.memsNoActiveCounter = 0;				
-					}
 					else
-					{
-						userProcessMgr.memsNoActiveCounter ++;
-						if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
-						{
-						    Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
-							sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
-							
-							userProcessMode = USER_PROCESS_SLEEP_MODE;
-							userProcessMgr.memsActiveCounter = 0;
-							tagInf_t.index = 0;
-							userProcessMgr.clockCounter = 0;
-							break;
-						}
-					}
-					
-					GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                      				DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                      				DEFAULT_DISCOVERY_WHITE_LIST );				
+					{					
+						GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      					DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      					DEFAULT_DISCOVERY_WHITE_LIST );	
+					}			
 				}
 				
 				if(userProcessMgr.rfStatusFlg == TRUE)
@@ -590,6 +593,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						  	UserProcess_LoraInf_Get();
 						  	sx1278_StatusPin_Disable();
 						  	sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+							userProcessMgr.rfStatusFlg = FALSE;
 							break;
 						  
 						default:
@@ -1101,6 +1105,7 @@ static void UserProcess_LoraInf_Send(void)
 	  	sx1278Lora_SetRFStatus(RFLR_STATE_TX_RUNNING);
 		sx1278Lora_RFSendBuf(rfRxTxBuf, len);
 		sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+		Task_sleep(5*1000/Clock_tickPeriod);
 	}	  	 	
 }
 
