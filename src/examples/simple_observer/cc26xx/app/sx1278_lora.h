@@ -843,7 +843,7 @@ uint8_t sx1278Lora_GetOpMode( void );
 void *sx1278Lora_GetRxData(uint8_t *size);
 void sx1278Lora_SetRFStatus(tRFLRStates st);
 void sx1278Lora_SetOpMode(uint8_t opMode);
-
+uint8_t sx1278Lora_GetRFStatus(void);
 #ifdef __cplusplus
 }
 #endif

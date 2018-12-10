@@ -287,7 +287,7 @@ void sx1278_SetLoRaOn(bool enable)
         sx1278Lora_SetOpMode( RFLR_OPMODE_STANDBY );  
     }
 	
-	RFLRState = RFLR_STATE_TX_INIT;
+	RFLRState = RFLR_STATE_IDLE;
 }
 
 static void sx1278Lora_SetParameters(void)
@@ -657,19 +657,14 @@ tRFLRStates  sx1278Lora_Process(void)
 				{ 	
 					// Clear Irq
 					sx1278_WriteData( REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
-					RFLRState = RFLR_STATE_TX_DONE; 
+					sx1278Lora_SetOpMode( RFLR_OPMODE_STANDBY );
+					RFLRState = RFLR_STATE_IDLE;
+					result =  RFLR_STATE_TX_DONE;
 				}
 			}
 			else
 				result = RFLR_STATE_TX_RUNNING; 
 			break;
-			
-		case RFLR_STATE_TX_DONE:
-		    // optimize the power consumption by switching off the transmitter as soon as the packet has been sent
-        	sx1278Lora_SetOpMode( RFLR_OPMODE_STANDBY );
-        	RFLRState = RFLR_STATE_IDLE;
-			result =  RFLR_STATE_TX_DONE;
-		  	break;
 			
 		case RFLR_STATE_RX_INIT:
 			sx1278Lora_EntryRx();
@@ -811,6 +806,12 @@ void sx1278Lora_SetRFStatus(tRFLRStates st)
 {
 	RFLRState = st;
 }
+
+uint8_t sx1278Lora_GetRFStatus(void)
+{
+	return RFLRState;
+}
+
 
 void *sx1278Lora_GetRxData(uint8_t *size)
 {
