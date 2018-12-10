@@ -119,10 +119,10 @@ bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB)
 	
 	PIN_registerIntCb(memsPinActive, Board_MemsActivedCallback);
 	
-	PIN_setConfig(memsPinActive, PIN_BM_IRQ, Board_I2C_INT | PIN_IRQ_NEGEDGE);
+	PIN_setConfig(memsPinActive, PIN_BM_IRQ, Board_I2C_INT | PIN_IRQ_POSEDGE);
 	
 #ifdef POWER_SAVING
-  	PIN_setConfig(memsPinActive, PINCC26XX_BM_WAKEUP, Board_I2C_INT | PINCC26XX_WAKEUP_NEGEDGE);
+  	PIN_setConfig(memsPinActive, PINCC26XX_BM_WAKEUP, Board_I2C_INT | PINCC26XX_WAKEUP_POSEDGE);
 #endif
 	
   	// Set the application callback

@@ -168,10 +168,10 @@ bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB)
 	
 	PIN_registerIntCb(RFStatusPin, Board_sx1278LoraStatusCallback);
 	
-	PIN_setConfig(RFStatusPin, PIN_BM_IRQ, Board_SX1278_DIO0 | PIN_IRQ_BOTHEDGES);
+	PIN_setConfig(RFStatusPin, PIN_BM_IRQ, Board_SX1278_DIO0 | PIN_IRQ_POSEDGE);
 	
 #ifdef POWER_SAVING
-  	PIN_setConfig(RFStatusPin, PINCC26XX_BM_WAKEUP, Board_SX1278_DIO0 | PINCC26XX_WAKEUP_NEGEDGE);
+  	PIN_setConfig(RFStatusPin, PINCC26XX_BM_WAKEUP, Board_SX1278_DIO0 | PINCC26XX_WAKEUP_POSEDGE);
 #endif
 	
   	// Set the application callback
