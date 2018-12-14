@@ -17,14 +17,26 @@
 #define SX1278BOARD_SPI     Board_SPI0
 
 /* sx1278 pin table */
-PIN_Config sx1278PinTable[] = {
+PIN_Config sx1278RstPinTable[] = {
     Board_SX1278_RST   | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL, 	// Enable 3V3 domain. Need to be high for sx1278 to work.
+	PIN_TERMINATE                                                               // Terminate list
+};
+
+PIN_Config sx1278CsnPinTable[] ={
 	Board_SX1278_CSN   | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL,
 	PIN_TERMINATE                                                               // Terminate list
 };
 
 PIN_Config sx1278RFStatusPinTable[] = {
  	Board_SX1278_DIO0  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   | PIN_PULLUP, // sx1278 RF tx/rx status notification pin	 
+	PIN_TERMINATE
+};
+
+PIN_Config sx1278SpiPinTable[] = {
+    Board_SPI0_MISO | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_NOPULL, 
+	Board_SPI0_MOSI | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP, 
+	Board_SPI0_CLK  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP,
+//	Board_SX1278_CSN| PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP,
 	PIN_TERMINATE
 };
 
@@ -38,7 +50,9 @@ LoraRFStatusCB_t appLoraRFStatusHandler = NULL;
 static PIN_State sx1278PinState;
 
 /* sx1278 PIN driver handle */
-static PIN_Handle sx1278Pin;
+static PIN_Handle sx1278RstPin;
+static PIN_Handle sx1278CsnPin;
+static PIN_Handle sx1278PowerPin;
 static PIN_Handle RFStatusPin; 
 /* Default sx1278_SPI parameters structure */
 const SPI_Params sx1278_SPI_defaultParams = {
@@ -88,6 +102,24 @@ bool Open_sx1278_SPI(void)
 	}
 		
 	return TRUE; 
+}
+
+void sx1278_LowPowerMgr(void)
+{
+	Close_sx1278_SPI();
+	
+	if(!sx1278PowerPin)
+    	sx1278PowerPin = PIN_open(&sx1278PinState, sx1278SpiPinTable);
+	
+	if(RFStatusPin)
+	  PIN_close(RFStatusPin);	
+	sx1278RFStatusPinTable[0] = Board_SX1278_DIO0  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   | PIN_NOPULL;
+	RFStatusPin = PIN_open(&sx1278PinState, sx1278RFStatusPinTable);
+	
+	if(sx1278CsnPin)
+	 	PIN_close(sx1278CsnPin); 
+	sx1278CsnPinTable[0] = Board_SX1278_CSN   | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  | PIN_PULLUP;
+	sx1278CsnPin = PIN_open(&sx1278PinState, sx1278CsnPinTable);
 }
 
 /*********************************************************************
@@ -143,16 +175,19 @@ bool sx1278_SPI_Read(const uint8_t *rxbuf, size_t rxlen)
  */
 bool Open_sx1278_PINs(void) 
 {
-	sx1278Pin = PIN_open(&sx1278PinState, sx1278PinTable);
+	sx1278RstPin = PIN_open(&sx1278PinState, sx1278RstPinTable);
+	if(sx1278RstPin == NULL)
+	  return FALSE;
 	
-	if(sx1278Pin == NULL)
+	sx1278CsnPin = PIN_open(&sx1278PinState, sx1278CsnPinTable);
+	if(sx1278CsnPin == NULL)
 	  return FALSE;
 	
 	/* Delay ~10 ms for sx1278 to be powered up. */
     Task_sleep(10*1000/Clock_tickPeriod);
 	
     /* Clear reset (set high)*/
-    PIN_setOutputValue(sx1278Pin, Board_SX1278_RST, 1);
+    PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 1);
    
 	return TRUE;
 }
@@ -226,7 +261,7 @@ uint8_t Read_sx1278Dio0_Pin(void)
  */
 void Reset_sx1278(void)
 {
-	PIN_setOutputValue(sx1278Pin, Board_SX1278_RST, 0);
+	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 0);
 }
 
 /*********************************************************************
@@ -240,13 +275,13 @@ void Reset_sx1278(void)
  */
 void Enable_sx1278(void)
 {
-	PIN_setOutputValue(sx1278Pin, Board_SX1278_RST, 1);
+	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 1);
 }
 
 void sx1278_SPI_CSN(bool enable)
 {
 	if(enable)
-		PIN_setOutputValue(sx1278Pin, Board_SX1278_CSN, 1);
+		PIN_setOutputValue(sx1278CsnPin, Board_SX1278_CSN, 1);
 	else
-	    PIN_setOutputValue(sx1278Pin, Board_SX1278_CSN, 0);
+	    PIN_setOutputValue(sx1278CsnPin, Board_SX1278_CSN, 0);
 }

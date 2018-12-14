@@ -507,7 +507,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		 	{
 			    sx1278Init();
 				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
-				
+				sx1278_LowPowerMgr();
 			    res = MemsOpen();
 			  	if(!res)
 				{
