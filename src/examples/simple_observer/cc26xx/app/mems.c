@@ -43,7 +43,10 @@ MemsActiveCB_t appMemsActiveHandler = NULL;
 static PIN_Handle memsPinSCL;
 static PIN_Handle memsPinSDA;
 static PIN_Handle memsPinActive;
-static PIN_State  memsPinState; 
+
+static PIN_State  memsSCLPinState; 
+static PIN_State  memsSDAPinState; 
+static PIN_State  memsActivePinState; 
 
 uint8_t transBuf; 
 
@@ -57,11 +60,11 @@ static void Board_MemsActivedCallback(PIN_Handle hPin, PIN_Id pinId);
 ********************************************/
 bool MemsOpen(void)
 {	
-	memsPinSCL = PIN_open(&memsPinState, memsSCLPinTable);
+	memsPinSCL = PIN_open(&memsSCLPinState, memsSCLPinTable);
 	if(!memsPinSCL)
 		return FALSE;  
 	
-	memsPinSDA = PIN_open(&memsPinState, memsSDAPinTable);
+	memsPinSDA = PIN_open(&memsSDAPinState, memsSDAPinTable);
 	if(!memsPinSDA)
 	 	return FALSE; 
 	
@@ -113,7 +116,7 @@ bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB)
 	if(memsPinActive)
 		PIN_close(memsPinActive);
 	
-	memsPinActive = PIN_open(&memsPinState, memsActivePinTable);
+	memsPinActive = PIN_open(&memsActivePinState, memsActivePinTable);
 	if(!memsPinActive)
 		return FALSE; 
 	
@@ -138,7 +141,7 @@ void Mems_ActivePin_Disable(void)
 	
 	memsActivePinTable[0] =  Board_I2C_INT | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_OPENDRAIN;
 	
-	memsPinActive = PIN_open(&memsPinState, memsActivePinTable);
+	memsPinActive = PIN_open(&memsActivePinState, memsActivePinTable);
 	if(!memsPinActive)
 		while(1);
 }
@@ -170,7 +173,7 @@ static void SDA_In(void)
 	PIN_close(memsPinSDA);
 	
 	memsSDAPinTable[0] = Board_I2C_SDA   | PIN_INPUT_EN  |  PIN_NOPULL ;
-	memsPinSDA = PIN_open(&memsPinState, memsSDAPinTable); 
+	memsPinSDA = PIN_open(&memsSDAPinState, memsSDAPinTable); 
 	if(!memsPinSDA)
 		while(1);	 
 }
@@ -180,7 +183,7 @@ static void SDA_Out(void)
   	PIN_close(memsPinSDA);
 	
 	memsSDAPinTable[0] = Board_I2C_SDA   | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH| PIN_OPENDRAIN| PIN_DRVSTR_MAX;
-	memsPinSDA = PIN_open(&memsPinState, memsSDAPinTable); 
+	memsPinSDA = PIN_open(&memsSDAPinState, memsSDAPinTable); 
 	if(!memsPinSDA)
 		while(1);	 
 }

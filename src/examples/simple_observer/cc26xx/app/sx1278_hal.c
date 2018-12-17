@@ -18,7 +18,7 @@
 
 /* sx1278 pin table */
 PIN_Config sx1278RstPinTable[] = {
-    Board_SX1278_RST   | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL, 	// Enable 3V3 domain. Need to be high for sx1278 to work.
+    Board_SX1278_RST   | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_LOW  | PIN_PUSHPULL, 	// Enable 3V3 domain. Need to be high for sx1278 to work.
 	PIN_TERMINATE                                                               // Terminate list
 };
 
@@ -47,7 +47,10 @@ SPI_Handle sx1278Handle;
 LoraRFStatusCB_t appLoraRFStatusHandler = NULL;
 
 /* sx1278 PIN driver state object */
-static PIN_State sx1278PinState;
+static PIN_State sx1278RstPinState;
+static PIN_State sx1278CsPinState;
+static PIN_State sx1278RFstatusPinState;
+static PIN_State sx1278PwPinState;
 
 /* sx1278 PIN driver handle */
 static PIN_Handle sx1278RstPin;
@@ -109,17 +112,17 @@ void sx1278_LowPowerMgr(void)
 	Close_sx1278_SPI();
 	
 	if(!sx1278PowerPin)
-    	sx1278PowerPin = PIN_open(&sx1278PinState, sx1278SpiPinTable);
+    	sx1278PowerPin = PIN_open(&sx1278PwPinState, sx1278SpiPinTable);
 	
 	if(RFStatusPin)
 	  PIN_close(RFStatusPin);	
 	sx1278RFStatusPinTable[0] = Board_SX1278_DIO0  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   | PIN_NOPULL;
-	RFStatusPin = PIN_open(&sx1278PinState, sx1278RFStatusPinTable);
+	RFStatusPin = PIN_open(&sx1278RFstatusPinState, sx1278RFStatusPinTable);
 	
 	if(sx1278CsnPin)
 	 	PIN_close(sx1278CsnPin); 
 	sx1278CsnPinTable[0] = Board_SX1278_CSN   | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  | PIN_PULLUP;
-	sx1278CsnPin = PIN_open(&sx1278PinState, sx1278CsnPinTable);
+	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 }
 
 /*********************************************************************
@@ -175,11 +178,11 @@ bool sx1278_SPI_Read(const uint8_t *rxbuf, size_t rxlen)
  */
 bool Open_sx1278_PINs(void) 
 {
-	sx1278RstPin = PIN_open(&sx1278PinState, sx1278RstPinTable);
+	sx1278RstPin = PIN_open(&sx1278RstPinState, sx1278RstPinTable);
 	if(sx1278RstPin == NULL)
 	  return FALSE;
 	
-	sx1278CsnPin = PIN_open(&sx1278PinState, sx1278CsnPinTable);
+	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 	if(sx1278CsnPin == NULL)
 	  return FALSE;
 	
@@ -197,7 +200,7 @@ bool sx1278_StatusPin_Enable(LoraRFStatusCB_t loraRFStatusCB)
   	if(RFStatusPin)
    		PIN_close(RFStatusPin);
 	
-	RFStatusPin = PIN_open(&sx1278PinState, sx1278RFStatusPinTable);
+	RFStatusPin = PIN_open(&sx1278RFstatusPinState, sx1278RFStatusPinTable);
 	if(!RFStatusPin)
 		return FALSE; 
 	
@@ -222,7 +225,7 @@ void sx1278_StatusPin_Disable(void)
 	
     sx1278RFStatusPinTable[0] =  Board_SX1278_DIO0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_OPENDRAIN;
 	
-	RFStatusPin = PIN_open(&sx1278PinState, sx1278RFStatusPinTable);
+	RFStatusPin = PIN_open(&sx1278RFstatusPinState, sx1278RFStatusPinTable);
 	if(!RFStatusPin)
 	  while(1);	 
 }
