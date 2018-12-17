@@ -549,7 +549,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			  	if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
 				{
 						Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
+						sx1278_OutputLowPw();
 						sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+						sx1278_LowPowerMgr();
 						userProcessMgr.wakeUpFlg = FALSE;
 						userProcessMgr.memsActiveFlg = 0;
 						userProcessMode = USER_PROCESS_SLEEP_MODE;
