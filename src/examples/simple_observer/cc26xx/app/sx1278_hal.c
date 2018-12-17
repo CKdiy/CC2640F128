@@ -125,6 +125,21 @@ void sx1278_LowPowerMgr(void)
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 }
 
+void sx1278_OutputLowPw(void)
+{
+	/* 释放引脚占用 */
+    if(sx1278PowerPin)
+		PIN_close(sx1278PowerPin);
+	
+	Open_sx1278_SPI();
+	
+	if(sx1278CsnPin)
+		PIN_close(sx1278CsnPin);  
+	
+	sx1278CsnPinTable[0] = Board_SX1278_CSN | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL;
+	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
+}
+
 /*********************************************************************
  * @fn      sx1278_SPI_Write
  *

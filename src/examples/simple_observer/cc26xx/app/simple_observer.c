@@ -570,6 +570,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						{
 					  		userProcessMgr.clockCounter = 0;
 							sx1278_StatusPin_Disable();
+							sx1278_OutputLowPw();
 							UserProcess_LoraInf_Send();
 
 							if(userProcessMgr.memsActiveFlg & 0x01)
