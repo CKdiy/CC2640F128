@@ -61,6 +61,7 @@ typedef struct
 	uint8 memsActiveCounter;
 	uint8 wakeUpFlg;
 	uint8 rfStatusFlg;
+	uint8 rfrxtimeout;
 }tUserProcessMgr;
 
 typedef struct 

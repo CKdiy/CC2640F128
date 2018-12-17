@@ -126,6 +126,7 @@
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_CALIBRATION_PERIOD_15s          15000
 #define DEFAULT_RFTRANSMIT_LEN                45
+#define DEFAULT_RFRXTIMOUT_TIME                1
 /*********************************************************************
  * TYPEDEFS
  */
@@ -508,6 +509,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			    sx1278Init();
 				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
 				sx1278_LowPowerMgr();
+
 			    res = MemsOpen();
 			  	if(!res)
 				{
@@ -584,13 +586,26 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						}
 						else
 						{	
-					   		if(sx1278Lora_GetRFStatus() != RFLR_STATE_TX_RUNNING) 
+							res = sx1278Lora_GetRFStatus();
+					   		if((RFLR_STATE_TX_RUNNING != res) || (RFLR_STATE_RX_RUNNING != res)) 
 					   		{
 						    	userProcessMgr.clockCounter ++;
 								GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                       							DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                       							DEFAULT_DISCOVERY_WHITE_LIST );	
 					   		}
+							
+							if(RFLR_STATE_RX_RUNNING == res)
+							{
+								userProcessMgr.rfrxtimeout ++;
+								/* 接收超时，强制进入Sleep模式 */
+								if( userProcessMgr.rfrxtimeout > DEFAULT_RFRXTIMOUT_TIME)
+								{
+									sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+									sx1278Lora_SetRFStatus(RFLR_STATE_IDLE);	
+									sx1278_LowPowerMgr();
+								}
+							}
 						}
 						
 						userProcessMgr.memsNoActiveCounter ++;
