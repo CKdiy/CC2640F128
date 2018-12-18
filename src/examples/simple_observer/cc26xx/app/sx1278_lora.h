@@ -106,6 +106,7 @@ typedef enum
     RFLR_STATE_TX_TIMEOUT,
     RFLR_STATE_CAD_INIT,
     RFLR_STATE_CAD_RUNNING,
+    RFLR_STATE_SLEEP,
 }tRFLRStates;
 
 /*!

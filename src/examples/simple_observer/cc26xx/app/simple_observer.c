@@ -229,7 +229,7 @@ static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
                                                  uint32_t *eventArg,
                                                  uint32_t *clientArg);
 
-static void UserProcess_LoraInf_Get(void);
+static bool UserProcess_LoraInf_Get(void);
 static void UserProcess_LoraInf_Send(void);
 /*********************************************************************
  * PROFILE CALLBACKS
@@ -489,8 +489,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				break;
 							
 			case RFLR_STATE_RX_DONE:
-				UserProcess_LoraInf_Get();	
-				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);						
+				if(UserProcess_LoraInf_Get())
+				{
+					sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);	
+					sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
+					sx1278_LowPowerMgr();
+				}
 		        userProcessMgr.rfStatusFlg = FALSE;
 				break;
 						  
@@ -509,6 +513,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			    sx1278Init();
 				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
 				sx1278_LowPowerMgr();
+				sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);
 
 			    res = MemsOpen();
 			  	if(!res)
@@ -549,9 +554,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			  	if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
 				{
 						Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
-						sx1278_OutputLowPw();
-						sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
-						sx1278_LowPowerMgr();
+						if(sx1278Lora_GetRFStatus() != RFLR_STATE_SLEEP)
+						{
+							sx1278_OutputLowPw();
+							sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+							sx1278_LowPowerMgr();
+						}
 						userProcessMgr.wakeUpFlg = FALSE;
 						userProcessMgr.memsActiveFlg = 0;
 						userProcessMode = USER_PROCESS_SLEEP_MODE;
@@ -572,7 +580,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						{
 					  		userProcessMgr.clockCounter = 0;
 							sx1278_StatusPin_Disable();
-							sx1278_OutputLowPw();
+							
+							if(sx1278Lora_GetRFStatus() == RFLR_STATE_SLEEP)
+								sx1278_OutputLowPw();
 							UserProcess_LoraInf_Send();
 
 							if(userProcessMgr.memsActiveFlg & 0x01)
@@ -605,7 +615,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 								if( userProcessMgr.rfrxtimeout > DEFAULT_RFRXTIMOUT_TIME)
 								{
 									sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
-									sx1278Lora_SetRFStatus(RFLR_STATE_IDLE);	
+									sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
 									sx1278_LowPowerMgr();
 								}
 							}
@@ -1028,7 +1038,7 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t state,
 
 #define LORATAT_MACADDRE_LEN    6
 
-static void UserProcess_LoraInf_Get(void)
+static bool UserProcess_LoraInf_Get(void)
 {
 	uint8_t size;
 	uint8_t len;
@@ -1041,7 +1051,7 @@ static void UserProcess_LoraInf_Get(void)
 	ptr = sx1278Lora_GetRxData(&size);
 	
 	if(ptr == NULL)
-		return;
+		return FALSE;
 	
 	while(i < size)
 	{
@@ -1057,13 +1067,13 @@ static void UserProcess_LoraInf_Get(void)
 	len = ptr[tmpCnt + 1];
 	
 	if ((size - i) < sizeof(lrtag_preFix) + sizeof(cmd) + sizeof(len) + len + sizeof(crc) + sizeof(lrtag_sufFix)) // PreFix + LEN + CMD + CRC + SufFix    
-		return;
+		return FALSE;
 	
 	for(i=0; i<len + sizeof(uint16_t); i++)
 		crc += ptr[tmpCnt + i];
 		  
 	 if(crc != ptr[tmpCnt + sizeof(uint16_t) + len])
-		return;
+		return FALSE;
 
 	memset(rfRxTxBuf, 0, DEFAULT_RFTRANSMIT_LEN);
 	memcpy(rfRxTxBuf, &ptr[tmpCnt+sizeof(uint16_t)], len);
@@ -1078,7 +1088,7 @@ static void UserProcess_LoraInf_Get(void)
 		default:
 			break;
 	}
-	
+	return TRUE;
 }
 
 static void UserProcess_LoraInf_Send(void)

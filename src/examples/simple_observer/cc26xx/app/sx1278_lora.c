@@ -337,9 +337,9 @@ void sx1278Lora_EntryTx(void)
 	sx1278_WriteData( REG_LR_HOPPERIOD, SX1278LR->RegHopPeriod );
 	
 	                                    // TxDone               RxTimeout                   FhssChangeChannel          ValidHeader         
-    SX1278LR->RegDioMapping1 = RFLR_DIOMAPPING1_DIO0_01 | RFLR_DIOMAPPING1_DIO1_00 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_01;
+    SX1278LR->RegDioMapping1 = RFLR_DIOMAPPING1_DIO0_01 | RFLR_DIOMAPPING1_DIO1_00 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_00;
                                         // PllLock              Mode Ready
-    SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_01 | RFLR_DIOMAPPING2_DIO5_00;
+    SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_00 | RFLR_DIOMAPPING2_DIO5_00;
     sx1278_WriteBuf( REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2 );
 	
 	//Clear all irq
@@ -358,7 +358,7 @@ void sx1278Lora_EntryRx(void)
 {
 	sx1278Lora_SetOpMode( RFLR_OPMODE_STANDBY );
 
-	SX1278LR->RegIrqFlagsMask = //RFLR_IRQFLAGS_RXTIMEOUT |
+	SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT |
                                 //RFLR_IRQFLAGS_RXDONE |
                                 RFLR_IRQFLAGS_PAYLOADCRCERROR |
                                 RFLR_IRQFLAGS_VALIDHEADER |
@@ -384,7 +384,7 @@ void sx1278Lora_EntryRx(void)
     sx1278_WriteData( REG_LR_HOPPERIOD, SX1278LR->RegHopPeriod );
                 
                                    // RxDone                    RxTimeout                   FhssChangeChannel           CadDone
-    SX1278LR->RegDioMapping1 = RFLR_DIOMAPPING1_DIO0_00 | RFLR_DIOMAPPING1_DIO1_00 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_01;
+    SX1278LR->RegDioMapping1 = RFLR_DIOMAPPING1_DIO0_00 | RFLR_DIOMAPPING1_DIO1_00 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_00;
                                    // CadDetected               ModeReady
     SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_00 | RFLR_DIOMAPPING2_DIO5_00;
     sx1278_WriteBuf( REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2 );
