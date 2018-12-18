@@ -46,6 +46,8 @@ typedef enum
 
 bool MemsOpen(void);
 void MemsClose(void);
+void MemsLowPwMode(void);
+void MemsLowPwMgr(void);
 bool Mems_ActivePin_Enable(MemsActiveCB_t memsActiveCB);
 void Mems_ActivePin_Disable(void);
 /*********************************************************************

@@ -103,11 +103,36 @@ bool MemsOpen(void)
 	return TRUE;
 }
 
+void MemsLowPwMode(void)
+{
+	//Mode: suspend
+	transBuf = 0x35 | (1<<3);
+	Mems_WriteReg(0x11, transBuf);
+}
+
+void MemsLowPwMgr(void)
+{
+    if(memsPinSCL)
+		PIN_close(memsPinSCL);
+	
+	memsSCLPinTable[0] = Board_I2C_SCL | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP;
+	memsPinSCL = PIN_open(&memsSCLPinState, memsSCLPinTable);
+	
+	if(memsPinSDA)
+		PIN_close(memsPinSDA);
+	
+	memsSDAPinTable[0] = Board_I2C_SDA | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP;
+	memsPinSDA = PIN_open(&memsSDAPinState, memsSDAPinTable);
+}
+
 /* 初始化完成后建议关闭，释放内存 */
 void MemsClose(void)
 {
-	PIN_close(memsPinSCL);
-	PIN_close(memsPinSDA);
+    if(memsPinSCL)
+		PIN_close(memsPinSCL);
+	
+	if(memsPinSDA)
+		PIN_close(memsPinSDA);
 }
 
 /* 使能Mems的Actived中断 */
