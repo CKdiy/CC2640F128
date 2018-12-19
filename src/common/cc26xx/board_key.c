@@ -108,6 +108,7 @@ PIN_Config keyPinsCfg[] =
     Board_KEY_LEFT      | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  |  PIN_PULLUP,
     Board_KEY_RIGHT     | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  |  PIN_PULLUP,
 #endif 
+    Board_KEY_SOS       | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  |  PIN_PULLUP,
     PIN_TERMINATE
 };
 
@@ -152,6 +153,8 @@ void Board_initKeys(keysPressedCB_t appKeyCB)
   PIN_setConfig(hKeyPins, PIN_BM_IRQ, Board_KEY_RIGHT   | PIN_IRQ_NEGEDGE);
 #endif
 
+  PIN_setConfig(hKeyPins, PIN_BM_IRQ, Board_KEY_SOS     | PIN_IRQ_NEGEDGE);  
+  
 #ifdef POWER_SAVING
   //Enable wakeup
 #if defined (CC2650_LAUNCHXL) || defined (CC1350_LAUNCHXL)
@@ -164,6 +167,7 @@ void Board_initKeys(keysPressedCB_t appKeyCB)
   PIN_setConfig(hKeyPins, PINCC26XX_BM_WAKEUP, Board_KEY_LEFT | PINCC26XX_WAKEUP_NEGEDGE);
   PIN_setConfig(hKeyPins, PINCC26XX_BM_WAKEUP, Board_KEY_RIGHT | PINCC26XX_WAKEUP_NEGEDGE);
 #endif
+  PIN_setConfig(hKeyPins, PINCC26XX_BM_WAKEUP, Board_KEY_SOS | PINCC26XX_WAKEUP_NEGEDGE);
 #endif //POWER_SAVING
 
   // Setup keycallback for keys
@@ -224,7 +228,10 @@ static void Board_keyCallback(PIN_Handle hPin, PIN_Id pinId)
     keysPressed |= KEY_RIGHT;
   }
 #endif
-
+  if ( PIN_getInputValue(Board_KEY_SOS) == 0 )
+  {
+    keysPressed |= KEY_SOS;
+  }
   Util_startClock(&keyChangeClock);
 }
 

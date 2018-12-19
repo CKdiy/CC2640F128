@@ -83,7 +83,8 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_DK_LED4                       IOID_3          /* P1.4  */
 /* Button Board */
 #define Board_KEY_SELECT                    IOID_9          /* P1.14 */
-#define Board_KEY_UP                        IOID_6          /* P1.10 */
+//#define Board_KEY_UP                        IOID_6          /* P1.10 */
+#define Board_KEY_SOS                       IOID_6          /* P1.10 */
 #define Board_KEY_DOWN                      IOID_4          /* P1.12 */
 #define Board_KEY_LEFT                      IOID_5          /* P1.6  */
 #define Board_KEY_RIGHT                     IOID_13         /* P1.8  */

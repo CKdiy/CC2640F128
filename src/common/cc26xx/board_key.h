@@ -68,7 +68,7 @@ extern "C" {
 #define KEY_DOWN              0x0004
 #define KEY_LEFT              0x0008
 #define KEY_RIGHT             0x0010
-
+#define KEY_SOS               0x0020
 // Debounce timeout in milliseconds
 #define KEY_DEBOUNCE_TIMEOUT  200
 

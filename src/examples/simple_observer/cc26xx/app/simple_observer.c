@@ -587,7 +587,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							if(sx1278Lora_GetRFStatus() == RFLR_STATE_SLEEP)
 								sx1278_OutputLowPw();
 							UserProcess_LoraInf_Send();
-
+    						userTxInf.status &= ~(1<<3);
 							if(userProcessMgr.memsActiveFlg & 0x01)
 							{
 								res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
@@ -771,6 +771,12 @@ static void SimpleBLEObserver_handleKeys(uint8 shift, uint8 keys)
   if (keys & KEY_LEFT)
   {
     return;
+  }
+  
+  if(keys & KEY_SOS)
+  {
+  	userTxInf.status |= 1<<3;
+	userProcessMgr.clockCounter = userNvramInf.txinterval;
   }
 }
 
