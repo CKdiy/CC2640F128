@@ -367,7 +367,7 @@ void SimpleBLEObserver_init(void)
   // Create an RTOS queue for message from profile to be sent to app.
   appMsgQueue = Util_constructQueue(&appMsg);
   
-  //Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+  Board_initKeys(SimpleBLEObserver_keyChangeHandler);
 
   //获取当前设备的Mac地址，作为设备唯一识别ID
   getMacAddress(&userTxInf.devId[0]);
@@ -494,6 +494,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);	
 					sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
 					sx1278_LowPowerMgr();
+					Board_LedCtrl(Board_LED_ON);
+					Task_sleep(50*1000/Clock_tickPeriod);
+					Board_LedCtrl(Board_LED_OFF);
 				}
 		        userProcessMgr.rfStatusFlg = FALSE;
 				break;

@@ -76,6 +76,7 @@ extern const PIN_Config BoardGpioInitTable[];
 /* Leds */
 #define Board_LED_ON                        1 /* LEDs on CC2650 are active high */
 #define Board_LED_OFF                       0
+#define Board_DK_LED0  						IOID_0
 #define Board_DK_LED1                       PIN_UNASSIGNED
 #define Board_DK_LED2                       PIN_UNASSIGNED
 #define Board_DK_LED3                       IOID_2          /* P1.2  */
