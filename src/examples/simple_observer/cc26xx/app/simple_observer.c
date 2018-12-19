@@ -652,6 +652,13 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						{
 							Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD);
 							userProcessMgr.memsActiveFlg = 0;
+							userProcessMgr.memsActiveFlg = 0;
+							res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+							if(!res)
+							{
+								userProcessMode = USER_PROCESS_ABNORMAL_MODE;
+								break;	
+							}
 							userProcessMode = USER_PROCESS_ACTIVE_MODE;
 						}				
 					}
