@@ -72,7 +72,7 @@ const double RssiOffsetHF[] =
 
 tRadioDriver *sx1278Radio = NULL;
 
-uint8_t RFBuffer[RF_PACKET_LEN];     
+uint8_t RFBuffer[40];     
 
 static bool LoRaOn = FALSE;
 static bool LoRaOnState = FALSE;

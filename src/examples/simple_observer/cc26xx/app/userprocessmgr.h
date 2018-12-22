@@ -59,7 +59,8 @@ typedef struct
 	uint8 memsActiveFlg;
 	uint8 memsNoActiveCounter;
 	uint8 memsActiveCounter;
-	uint8 wakeUpSourse;      //value:0x01 RTC ,0x02 Mems ,0x04 key, 0x08 LoraTX/RX INT
+	uint8 wakeUpSourse;      //value:0x00 RTC ,0x02 Mems ,0x04 key, 0x08 LoraTX/RX INT
+	uint8 wakeUpFlg; 
 	uint8 rfStatusFlg;
 	uint8 rftxtimeout;
 	uint8 rfrxtimeout;
