@@ -611,10 +611,8 @@ void sx1278Lora_SetRFPower( int8_t power )
 
 bool sx1278Lora_RFSendBuf( uint8_t *txBuf, size_t txLen)
 {
-    if(txLen > SX1278LR->RegPayloadLength)
-		return FALSE;
-	
-	SX1278LR->RegPayloadLength = txLen;
+    if(txLen > RF_PACKET_LEN)
+		return FALSE;	
 		
     // Initializes the payload size
     SX1278LR->RegPayloadLength = txLen;
@@ -623,7 +621,7 @@ bool sx1278Lora_RFSendBuf( uint8_t *txBuf, size_t txLen)
 	// Write payload buffer to LORA modem
     sx1278_WriteBuf(0, txBuf, SX1278LR->RegPayloadLength);
    
-    sx1278Lora_SetOpMode( RFLR_OPMODE_TRANSMITTER | RFLR_OPMODE_LOWFREQUENCYMODEON );
+    sx1278Lora_SetOpMode( RFLR_OPMODE_TRANSMITTER  );
 			  
 	sx1278_ReadData(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
 			  
@@ -649,8 +647,8 @@ tRFLRStates  sx1278Lora_Process(void)
 			
 	  	case RFLR_STATE_TX_RUNNING:
 		 	// TxDone
-			if(Read_sx1278Dio0_Pin())
-			{			
+//			if(Read_sx1278Dio0_Pin())
+//			{			
 				sx1278_ReadData(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
 									
 				if((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_TXDONE) == RFLR_IRQFLAGS_TXDONE)
@@ -661,7 +659,7 @@ tRFLRStates  sx1278Lora_Process(void)
 					RFLRState = RFLR_STATE_IDLE;
 					result =  RFLR_STATE_TX_DONE;
 				}
-			}
+//			}
 			else
 				result = RFLR_STATE_TX_RUNNING; 
 			break;
@@ -673,8 +671,8 @@ tRFLRStates  sx1278Lora_Process(void)
 		
 		case RFLR_STATE_RX_RUNNING:
 			// RxDone
-			if( Read_sx1278Dio0_Pin())
-			{				
+//			if( Read_sx1278Dio0_Pin())
+//			{				
 				sx1278_ReadData(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
 						
 				if((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_RXDONE) == RFLR_IRQFLAGS_RXDONE)
@@ -683,7 +681,7 @@ tRFLRStates  sx1278Lora_Process(void)
 					sx1278_WriteData( REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE  );
 					RFLRState = RFLR_STATE_RX_DONE;
 				}
-			}
+//			}
 			else
 				result = RFLR_STATE_RX_RUNNING;
 			break;
