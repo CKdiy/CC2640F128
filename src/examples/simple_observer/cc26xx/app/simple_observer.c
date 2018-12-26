@@ -109,7 +109,7 @@
 #define SBO_TASK_PRIORITY                     1
 
 #ifndef SBO_TASK_STACK_SIZE
-#define SBO_TASK_STACK_SIZE                   660
+#define SBO_TASK_STACK_SIZE                   1024
 #endif
 
 // Internal Events for RTOS application
@@ -490,6 +490,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			sx1278Lora_EntryRx();
 			sx1278Lora_SetRFStatus(RFLR_STATE_RX_RUNNING);						
 			userProcessMgr.rfStatusFlg = FALSE;
+			userProcessMgr.rftxtimeout = 0;
 			break;
 							
 		case RFLR_STATE_RX_DONE:
@@ -497,7 +498,8 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			{
 				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);	
 				sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
-//				sx1278_LowPowerMgr();
+				sx1278_LowPowerMgr();
+				userProcessMgr.rfrxtimeout = 0;
 			}
 		    userProcessMgr.rfStatusFlg = FALSE;
 			break;
@@ -515,7 +517,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		 	{
 			    sx1278Init();
 				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
-//				sx1278_LowPowerMgr();
+				sx1278_LowPowerMgr();
 				sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);
 
 			    res = MemsOpen();
@@ -554,8 +556,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			
 	    case USER_PROCESS_ACTIVE_MODE:
 		  	{	
-			  	rfstatus = sx1278Lora_GetRFStatus();
-				
+			 	rfstatus = sx1278Lora_GetRFStatus();
 				if((RFLR_STATE_TX_RUNNING != rfstatus) && (RFLR_STATE_RX_RUNNING != rfstatus) && (RFLR_STATE_RX_DONE != rfstatus))
 				{
 			  		if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
@@ -593,7 +594,8 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							{
 								sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
 								sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
-								//sx1278_LowPowerMgr();
+								sx1278_LowPowerMgr();
+								userProcessMgr.rfrxtimeout = 0;
 							}
 						}
 						else if(RFLR_STATE_TX_RUNNING == rfstatus)
@@ -602,6 +604,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						 	if( userProcessMgr.rftxtimeout > DEFAULT_RFTXTIMOUT_TIME)
 						 	{
 						 		HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
+								userProcessMgr.rftxtimeout = 0;
 						 	}
 						}
 					
@@ -611,9 +614,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							
 							if( RFLR_STATE_SLEEP == rfstatus)
 							{
-								//sx1278_OutputLowPw();
+								sx1278_OutputLowPw();
 								UserProcess_LoraInf_Send();
-								userProcessMgr.clockCounter = 0;
+								userProcessMgr.clockCounter = 0;								
 							}
     						userTxInf.status &= ~(1<<3);
 							if(userProcessMgr.memsActiveFlg == TRUE)
