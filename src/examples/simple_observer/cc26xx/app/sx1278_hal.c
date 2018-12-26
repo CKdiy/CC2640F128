@@ -63,7 +63,7 @@ const SPI_Params sx1278_SPI_defaultParams = {
     SPI_WAIT_FOREVER,   /* transferTimeout */
     NULL,               /* transferCallbackFxn */
     SPI_MASTER,         /* mode */
-    1000000,            /* bitRate */
+    10000000,            /* bitRate */
     8,                  /* dataSize */
     SPI_POL0_PHA0,      /* frameFormat */
     NULL                /* custom */
@@ -131,13 +131,18 @@ void sx1278_OutputLowPw(void)
     if(sx1278PowerPin)
 		PIN_close(sx1278PowerPin);
 	
-	Open_sx1278_SPI();
+	if(!Open_sx1278_SPI())
+	{
+	   while(1);	
+	}
 	
 	if(sx1278CsnPin)
 		PIN_close(sx1278CsnPin);  
 	
 	sx1278CsnPinTable[0] = Board_SX1278_CSN | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL;
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
+	
+	Task_sleep(1*1000/Clock_tickPeriod);
 }
 
 /*********************************************************************
