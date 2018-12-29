@@ -33,10 +33,9 @@ PIN_Config sx1278RFStatusPinTable[] = {
 };
 
 PIN_Config sx1278SpiPinTable[] = {
-    Board_SPI0_MISO | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_NOPULL, 
-	Board_SPI0_MOSI | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP, 
-	Board_SPI0_CLK  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP,
-//	Board_SX1278_CSN| PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP,
+    Board_SPI0_MISO | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLDOWN, 
+	Board_SPI0_MOSI | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLDOWN, 
+	Board_SPI0_CLK  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLDOWN,
 	PIN_TERMINATE
 };
 
@@ -111,18 +110,20 @@ void sx1278_LowPowerMgr(void)
 {
 	Close_sx1278_SPI();
 	
-	if(!sx1278PowerPin)
-    	sx1278PowerPin = PIN_open(&sx1278PwPinState, sx1278SpiPinTable);
+	if(sx1278PowerPin)
+	  PIN_close(sx1278PowerPin); 
+    sx1278PowerPin = PIN_open(&sx1278PwPinState, sx1278SpiPinTable);
 	
 	if(RFStatusPin)
 	  PIN_close(RFStatusPin);	
-	sx1278RFStatusPinTable[0] = Board_SX1278_DIO0  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   | PIN_NOPULL;
+	sx1278RFStatusPinTable[0] = Board_SX1278_DIO0  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN   | PIN_PULLDOWN;
 	RFStatusPin = PIN_open(&sx1278RFstatusPinState, sx1278RFStatusPinTable);
 	
 	if(sx1278CsnPin)
 	 	PIN_close(sx1278CsnPin); 
-	sx1278CsnPinTable[0] = Board_SX1278_CSN   | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  | PIN_PULLUP;
+	sx1278CsnPinTable[0] = Board_SX1278_CSN   | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  | PIN_PULLDOWN;
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
+
 }
 
 void sx1278_OutputLowPw(void)
