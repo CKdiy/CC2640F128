@@ -121,6 +121,8 @@ extern const PIN_Config BoardGpioInitTable[];
 #define Board_I2C_SCL                       IOID_4			
 #define Board_I2C_SDA                       IOID_3			
 #define Board_I2C_INT                       IOID_2
+#define Board_DIDO11                        IOID_11
+#define Board_DIDO1                         IOID_1
 /** ============================================================================
  *  Instance identifiers
  *  ==========================================================================*/

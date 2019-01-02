@@ -114,7 +114,9 @@ PIN_Config keyPinsCfg[] =
 
 PIN_Config LedPinsCfg[] =
 {
-	Board_DK_LED0       | PIN_GPIO_OUTPUT_EN   | PIN_INPUT_DIS |  PIN_GPIO_LOW  |  PIN_PULLUP,     
+	Board_DK_LED0       | PIN_GPIO_OUTPUT_EN   | PIN_INPUT_DIS |  PIN_GPIO_LOW  |  PIN_PULLUP,    
+	Board_DIDO11        | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  |  PIN_NOPULL,
+	Board_DIDO1         | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  |  PIN_PULLDOWN, 
 	PIN_TERMINATE
 };
 
