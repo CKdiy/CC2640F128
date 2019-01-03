@@ -496,10 +496,13 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		case RFLR_STATE_RX_DONE:
 			if(UserProcess_LoraInf_Get())
 			{
+			    sx1278Lora_SetOpMode( RFLR_OPMODE_STANDBY );
+				Task_sleep(5*1000/Clock_tickPeriod);
 				sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);	
 				sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
 				sx1278_LowPowerMgr();
 				userProcessMgr.rfrxtimeout = 0;
+				Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD);
 			}
 		    userProcessMgr.rfStatusFlg = FALSE;
 			break;
@@ -528,10 +531,11 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					//Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);
 				  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
 				}
-				
+
 				/* Memory is freed after initialization */
 				MemsClose();
 				
+				MemsLowPwMgr();
 				res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
 				if(!res)
 				{
@@ -616,7 +620,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							{
 								sx1278_OutputLowPw();
 								UserProcess_LoraInf_Send();
-								userProcessMgr.clockCounter = 0;								
+								userProcessMgr.clockCounter = 0;
 							}
     						userTxInf.status &= ~(1<<3);
 							if(userProcessMgr.memsActiveFlg == TRUE)
@@ -839,10 +843,14 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 
     case GAP_DEVICE_INFO_EVENT:
 	  {
-		SimpleBLEObserver_addDeviceInfo_Ex(pEvent->deviceInfo.addr,
- 										   pEvent->deviceInfo.pEvtData,
- 										   pEvent->deviceInfo.dataLen,
- 										   pEvent->deviceInfo.rssi);
+		
+		if(pEvent->deviceInfo.eventType != GAP_ADRPT_SCAN_RSP)
+		{
+			SimpleBLEObserver_addDeviceInfo_Ex(pEvent->deviceInfo.addr,
+ 										    pEvent->deviceInfo.pEvtData,
+ 										   	pEvent->deviceInfo.dataLen,
+ 										   	pEvent->deviceInfo.rssi);
+		}
       }
       break;
 
@@ -883,7 +891,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 				//涮选出本次搜索rssi最大设备并暂存到用户区
  				if(userTxInf.txTagNum >= DEFAULT_MAX_SCAN_RES)
  		    		return;  
- 		
+
  				for(; scanRes>0; scanRes--)
  				{
  					if(scanRes -1 == 0)
@@ -983,12 +991,12 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
  	
  	if(BEELINKER_ADVDATA_LEN != datalen)
  		return;
- 	
+
  	ptr = pData; 
  	uuidoffset = BEELINKER_ADVUUID_OFFSET;
  	if(memcmp(&ptr[uuidoffset], weiXinUuid, sizeof(weiXinUuid)) != 0)
  	  	return;
- 	   
+ 
    	// If result count not at max
    	if ( scanRes < DEFAULT_MAX_SCAN_RES )
    	{
@@ -1002,10 +1010,10 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
 		}
 		// Add addr to scan result list
 		memcpy(devList[scanRes].addr, pAddr, B_ADDR_LEN );
- 		
+ 
 		majoroffset = BEELINKER_ADVMAJOR_OFFSET; 
 		memcpy((void *)(&tagInf_t.tagInfBuf_t[scanRes].major[0]), (void *)&ptr[majoroffset], sizeof(uint32));
- 		
+
 		tagInf_t.tagInfBuf_t[scanRes].tagIndex = tagInf_t.index;
 		
 		tagInf_t.tagInfBuf_t[scanRes].rssi     = 0xFF - rssi;
