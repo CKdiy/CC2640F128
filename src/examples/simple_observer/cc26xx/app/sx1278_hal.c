@@ -33,9 +33,9 @@ PIN_Config sx1278RFStatusPinTable[] = {
 };
 
 PIN_Config sx1278SpiPinTable[] = {
-    Board_SPI0_MISO | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLDOWN, 
-	Board_SPI0_MOSI | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLDOWN, 
-	Board_SPI0_CLK  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLDOWN,
+    Board_SPI0_MISO | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_NOPULL, 
+	Board_SPI0_MOSI | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP, 
+	Board_SPI0_CLK  | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLUP,
 	PIN_TERMINATE
 };
 
@@ -244,7 +244,7 @@ void sx1278_StatusPin_Disable(void)
     if(RFStatusPin)
     	PIN_close(RFStatusPin);
 	
-    sx1278RFStatusPinTable[0] =  Board_SX1278_DIO0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_OPENDRAIN;
+    sx1278RFStatusPinTable[0] =  Board_SX1278_DIO0 | PIN_GPIO_OUTPUT_DIS | PIN_INPUT_EN | PIN_PULLDOWN;
 	
 	RFStatusPin = PIN_open(&sx1278RFstatusPinState, sx1278RFStatusPinTable);
 	if(!RFStatusPin)

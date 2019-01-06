@@ -164,7 +164,7 @@ void Mems_ActivePin_Disable(void)
    	if(memsPinActive)
    		PIN_close(memsPinActive);
 	
-	memsActivePinTable[0] =  Board_I2C_INT | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_OPENDRAIN;
+	memsActivePinTable[0] =  Board_I2C_INT | PIN_GPIO_OUTPUT_DIS |PIN_INPUT_EN | PIN_NOPULL;
 	
 	memsPinActive = PIN_open(&memsActivePinState, memsActivePinTable);
 	if(!memsPinActive)
