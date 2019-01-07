@@ -89,7 +89,7 @@
  */
 
 // Maximum number of scan responses
-#define DEFAULT_MAX_SCAN_RES                  4
+#define DEFAULT_MAX_SCAN_RES                  8
 
 // Scan duration in ms
 #define DEFAULT_SCAN_DURATION_10ms            10
@@ -117,18 +117,20 @@
 #define SBO_STATE_CHANGE_EVT                  0x0002
 #define SBO_MEMS_ACTIVE_EVT                   0x0004
 #define SBO_LORA_STATUSPIN_EVT                0x0008
+#define SBP_PERIODIC_EVT                      0x0010
 
 //User Send Interval Time
 #define DEFAULT_USER_TX_INTERVAL_TIME         5
 #define DEFAULT_USER_MEMS_ACTIVE_TIME         3 
-#define DEFAULT_USER_MEMS_NOACTIVE_TIME       21  
+#define DEFAULT_USER_MEMS_NOACTIVE_TIME       13  
 // 1000 ms
 #define RCOSC_CALIBRATION_PERIOD              1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_CALIBRATION_PERIOD_15s          15000
 #define DEFAULT_RFTRANSMIT_LEN                45
-#define DEFAULT_RFRXTIMOUT_TIME                3
-#define DEFAULT_RFTXTIMOUT_TIME                4
+#define DEFAULT_RFRXTIMOUT_TIME                2
+#define DEFAULT_RFTXTIMOUT_TIME                2
+#define DEFAULT_MAX_RFSENDTAG_NUM              4
 /*********************************************************************
  * TYPEDEFS
  */
@@ -180,7 +182,8 @@ static uint8_t isEnabled = FALSE;
 static Queue_Struct appMsg;
 static Queue_Handle appMsgQueue;
 
-static tUserProcessStates userProcess_State;
+static uint8 rfstatus;
+volatile tUserProcessStates userProcess_State;
 static tUserProcessMode userProcessMode;
 volatile tUserProcessMgr userProcessMgr;
 tUserNvramInf   userNvramInf;
@@ -188,11 +191,11 @@ tUserNvramInf   userNvramInf;
 Task_Struct sboTask;
 Char sboTaskStack[SBO_TASK_STACK_SIZE];
 
-// Number of scan results and scan result index
-static uint8 scanRes;
-
 //Watchdog_Params params;
 //Watchdog_Handle watchdog;
+
+// events flag for internal application events.
+static uint16_t events;
 
 // Scan result list
 static gapDevRec_t devList[DEFAULT_MAX_SCAN_RES];
@@ -203,6 +206,7 @@ static uint8_t rfRxTxBuf[DEFAULT_RFTRANSMIT_LEN];
 const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 const uint8_t lrtag_preFix[2] = {0xFE, 0xBE};
 const uint8_t lrtag_sufFix[2] = {0x0D, 0x0A};
+
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
@@ -233,7 +237,8 @@ static void SimpleBLEObserver_userclockHandler(UArg arg);
 static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
                                                  uint32_t *eventArg,
                                                  uint32_t *clientArg);
-
+static void SimpleBLEObserver_performPeriodicTask(void);
+static void SimpleBLEObserver_sleepModelTask(void);
 static bool UserProcess_LoraInf_Get(void);
 static void UserProcess_LoraInf_Send(void);
 /*********************************************************************
@@ -269,21 +274,10 @@ void RCOSC_enableCalibration(void)
     // Set device's Sleep Clock Accuracy
     HCI_EXT_SetSCACmd(500);
 
-  	Util_constructClock(&userProcessClock, SimpleBLEObserver_userclockHandler,
-                      RCOSC_CALIBRATION_PERIOD, 0, false, 0);
-
     // Receive callback when device wakes up from Standby Mode.
     Power_registerNotify(&injectCalibrationPowerNotifyObj, PowerCC26XX_AWAKE_STANDBY,
                          (Power_NotifyFxn)rcosc_injectCalibrationPostNotify,
                          NULL);
-
-
-    // Start clock for the RCOSC calibration injection.  Calibration must be
-    // done once every second by either the clock or by waking up from StandyBy
-    // Mode. To ensure that the device is always correctly calibrated the clock
-    // is started now but is only allowed to expire when a wake up event does
-    // not occur within the clock's duration.
-    Util_startClock(&userProcessClock);
   }
 }
 
@@ -302,18 +296,16 @@ static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
                                                  uint32_t *clientArg)
 {
   // If clock is active at time of wake up,
-  if (Util_isActive(&userProcessClock))
-  {
-    // Stop injection of calibration - the wakeup has automatically done this.
-    Util_stopClock(&userProcessClock);
-  }
+//  if (Util_isActive(&userProcessClock))
+//  {
+//    // Stop injection of calibration - the wakeup has automatically done this.
+//    Util_stopClock(&userProcessClock);
+//  }
 
   // Restart the clock in case delta between now and next wake up is greater
   // than one second.
-  userProcessMgr.wakeUpFlg = TRUE;
-  Util_startClock(&userProcessClock);
-  // Wake up the application.
-  Semaphore_post(sem);
+  //Util_startClock(&userProcessClock);
+  
   return Power_NOTIFYDONE;
 }
 
@@ -361,14 +353,6 @@ void SimpleBLEObserver_init(void)
   // so that the application can send and receive messages.
   ICall_registerApp(&selfEntity, &sem);
   
-#ifdef USE_RCOSC
-	RCOSC_enableCalibration();
-#endif // USE_RCOSC
-	
-  // Hard code the DB Address till CC2650 board gets its own IEEE address
-  //uint8 bdAddress[B_ADDR_LEN] = { 0x44, 0x44, 0x44, 0x44, 0x44, 0x44 };
-  //HCI_EXT_SetBDADDRCmd(bdAddress);
-
   // Create an RTOS queue for message from profile to be sent to app.
   appMsgQueue = Util_constructQueue(&appMsg);
   
@@ -379,19 +363,17 @@ void SimpleBLEObserver_init(void)
   //config user inf
   userTxInf.status       = 0;
   userTxInf.txTagNum     = 0;
-  userTxInf.tagInfBuf_t  = userTxList;
+  userTxInf.tagInfBuf_t  = (tagInfStruct *)userTxList;
   userTxInf.interval[0]  = DEFAULT_USER_TX_INTERVAL_TIME >> 8;
   userTxInf.interval[1]  = DEFAULT_USER_TX_INTERVAL_TIME & (0xFF);
   tagInf_t.index         = 0;
   tagInf_t.tagNum        = 0;
-  tagInf_t.tagInfBuf_t   = devInfList;
+  tagInf_t.tagInfBuf_t   = (tagInfStruct *)devInfList;
   userProcess_State      = USER_PROCESS_IDLE;
   userProcessMode        = USER_PROCESS_IDLE_MODE;
 
   userProcessMgr.abNormalScanTime = 0;
   userProcessMgr.memsActiveFlg = 0;
-  userProcessMgr.wakeUpSourse  = 0;
-  userProcessMgr.rfStatusFlg   = FALSE;
   userProcessMgr.clockCounter  = 0;
   userProcessMode = USER_PROCESS_IDLE_MODE;
   userProcessMgr.rftxtimeout = 0;
@@ -434,8 +416,7 @@ void SimpleBLEObserver_init(void)
  */
 static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 {
-  static uint8 res; 
-  static uint8 rfstatus;
+  uint8 res; 
   // Initialize application
   SimpleBLEObserver_init();
 
@@ -483,13 +464,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
         ICall_free(pMsg);
       }
     }
-	
+		
 	switch(sx1278Lora_Process())
 	{
 		case RFLR_STATE_TX_DONE:
 			sx1278Lora_EntryRx();
 			sx1278Lora_SetRFStatus(RFLR_STATE_RX_RUNNING);						
-			userProcessMgr.rfStatusFlg = FALSE;
 			userProcessMgr.rftxtimeout = 0;
 			break;
 							
@@ -502,9 +482,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
 				sx1278_LowPowerMgr();
 				userProcessMgr.rfrxtimeout = 0;
+				userProcessMgr.clockCounter = 0;
 				Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD);
 			}
-		    userProcessMgr.rfStatusFlg = FALSE;
 			break;
 						  
 		default:
@@ -512,10 +492,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	}
 
 	switch(userProcessMode)
-	{
-//		case USER_PROCESS_IDLE_MODE:
-//	  		break;
-			
+	{		
 		case USER_PROCESS_NORAMAL_MODE:
 		 	{
 			    sx1278Init();
@@ -526,21 +503,15 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			    res = MemsOpen();
 			  	if(!res)
 				{
-				    /* reset or enter into  ABNORMAL_MODE*/
-				  	//userProcessMode = USER_PROCESS_ABNORMAL_MODE;
-					//Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);
+				  /* reset or enter into  ABNORMAL_MODE*/
 				  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
 				}
-
-				/* Memory is freed after initialization */
-				MemsClose();
 				
 				MemsLowPwMgr();
+				
 				res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
 				if(!res)
 				{
-//				  	userProcessMode = USER_PROCESS_ABNORMAL_MODE;
-//					Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);	
 				  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
 				}  
 				
@@ -548,19 +519,41 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
   				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
   				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
 				
+#ifdef USE_RCOSC
+	RCOSC_enableCalibration();
+#endif // USE_RCOSC  	
+	
+				Util_constructClock(&userProcessClock, SimpleBLEObserver_userclockHandler,
+                                            RCOSC_CALIBRATION_PERIOD, 0, false, SBP_PERIODIC_EVT);
+				
 				userProcessMode = USER_PROCESS_ACTIVE_MODE;
+				
+				Util_startClock(&userProcessClock);
 		 	}	  
 	  		break;
 			
-//	    case USER_PROCESS_ABNORMAL_MODE:
-//		  	{
-//		  		;
-//		  	}
-//			break;
+	    case USER_PROCESS_ABNORMAL_MODE:
+		  	{
+		  		;
+		  	}
+			break;
 			
 	    case USER_PROCESS_ACTIVE_MODE:
 		  	{	
-			 	rfstatus = sx1278Lora_GetRFStatus();
+				rfstatus = sx1278Lora_GetRFStatus();
+				
+				if (events & SBP_PERIODIC_EVT)
+				{
+					tagInf_t.index ++;
+	  
+					events &= ~SBP_PERIODIC_EVT;
+	  
+					Util_startClock(&userProcessClock);
+
+					// Perform periodic application task
+					SimpleBLEObserver_performPeriodicTask();
+				}
+			  			  			  
 				if((RFLR_STATE_TX_RUNNING != rfstatus) && (RFLR_STATE_RX_RUNNING != rfstatus) && (RFLR_STATE_RX_DONE != rfstatus))
 				{
 			  		if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
@@ -571,146 +564,49 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
 							sx1278_LowPowerMgr();
 						}
-						userProcessMgr.wakeUpSourse = 0;
+						
 						userProcessMgr.memsActiveFlg = FALSE;
 						userProcessMode = USER_PROCESS_SLEEP_MODE;
 						userProcessMgr.memsActiveCounter = 0;
 						tagInf_t.index = 0;
 						userProcessMgr.clockCounter = 0;
+						userTxInf.txTagNum = 0;
 						userProcessMgr.memsNoActiveCounter = 0;
+						Util_stopClock(&userProcessClock);						
+						Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
 					}
-				}
-				
-				/* 定时休眠唤醒,唤醒后自动打开搜索  */  
-				if(userProcessMgr.wakeUpFlg)
-				{
-				  	userProcessMgr.wakeUpFlg = FALSE;
-					if(userProcessMgr.wakeUpSourse == 0x00)
-					{
-						tagInf_t.index ++;	  
-				    	userProcessMgr.wakeUpSourse = 0;
-					
-						if(RFLR_STATE_RX_RUNNING == rfstatus)
-						{
-							userProcessMgr.rfrxtimeout ++;
-							/* 接收超时，强制进入Sleep模式 */
-							if( userProcessMgr.rfrxtimeout >= DEFAULT_RFRXTIMOUT_TIME)
-							{
-								sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
-								sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
-								sx1278_LowPowerMgr();
-								userProcessMgr.rfrxtimeout = 0;
-							}
-						}
-						else if(RFLR_STATE_TX_RUNNING == rfstatus)
-						{	 
-							userProcessMgr.rftxtimeout ++;
-						 	if( userProcessMgr.rftxtimeout > DEFAULT_RFTXTIMOUT_TIME)
-						 	{
-						 		HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
-								userProcessMgr.rftxtimeout = 0;
-						 	}
-						}
-					
-				   		if(userProcessMgr.clockCounter >= userNvramInf.txinterval - 1)
-						{
-							sx1278_StatusPin_Disable();
-							
-							if( RFLR_STATE_SLEEP == rfstatus)
-							{
-								sx1278_OutputLowPw();
-								UserProcess_LoraInf_Send();
-								userProcessMgr.clockCounter = 0;
-							}
-    						userTxInf.status &= ~(1<<3);
-							if(userProcessMgr.memsActiveFlg == TRUE)
-							{
-						 		userProcessMgr.memsActiveFlg = FALSE;
-								res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-								if(!res)
-								{
-//				  					userProcessMode = USER_PROCESS_ABNORMAL_MODE;
-//									Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_15s);
-								  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
-								}						
-							}			
-						}
-						else
-						{								
-							if((RFLR_STATE_TX_RUNNING != res) && (RFLR_STATE_RX_RUNNING != res)) 
-					   		{
-						    	userProcessMgr.clockCounter ++;
-								
-								GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                      						DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                      						DEFAULT_DISCOVERY_WHITE_LIST );	
-					   		}							
-						
-							if(userProcessMgr.memsActiveFlg == FALSE)
-								userProcessMgr.memsNoActiveCounter ++;
-							else 
-						    	userProcessMgr.memsNoActiveCounter = 0;
-						}												
-					}
-					else if(userProcessMgr.wakeUpSourse & 0x02)
-					{
-						userProcessMgr.wakeUpSourse = 0;  			  
-					}
-					else if(userProcessMgr.wakeUpSourse & 0x04)
-					{
-						userProcessMgr.wakeUpSourse = 0;  
-					}
-					else
-						userProcessMgr.wakeUpSourse = 0;
-				}
+				}																									
 		  	}
 			break;
 			
 	    case USER_PROCESS_SLEEP_MODE:
 		  	{
-			  	if(userProcessMgr.wakeUpFlg)
+			  	if (events & SBP_PERIODIC_EVT)
+   			 	{	  
+      				events &= ~SBP_PERIODIC_EVT;
+	  
+      				Util_startClock(&userProcessClock);
+
+      				// Perform periodic application task
+	  				SimpleBLEObserver_sleepModelTask();
+    			}
+			  
+				if(userProcessMgr.wakeUpSourse & 0x04)
 				{
-					userProcessMgr.wakeUpFlg = FALSE;
-					
-					if(userProcessMgr.wakeUpSourse == 0x0)
-					{	
-				   	 	if(userProcessMgr.memsActiveFlg == TRUE)
-						{
-							userProcessMgr.memsActiveCounter ++;
-							userProcessMgr.memsActiveFlg = FALSE;
-							res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-							if(!res)
-							{
-                              HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
-							}
-						
-							if(userProcessMgr.memsActiveCounter >= DEFAULT_USER_MEMS_ACTIVE_TIME)
-							{
-								userProcessMgr.memsActiveFlg = 0;
-								userProcessMgr.memsActiveCounter = 0;
-								userProcessMode = USER_PROCESS_ACTIVE_MODE;
-							}				
-						}
-//					else
-//						userProcessMgr.memsActiveCounter = 0;
-					}
-					else if(userProcessMgr.wakeUpSourse & 0x04)
+				  	if(userProcessMgr.memsActiveFlg == TRUE)
 					{
-				  		if(userProcessMgr.memsActiveFlg == TRUE)
+						userProcessMgr.memsActiveFlg = FALSE;
+						res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+						if(!res)
 						{
-						 	userProcessMgr.memsActiveFlg = FALSE;
-							res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-							if(!res)
-							{
-							 HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);							
-							}						
-						}
-						userProcessMgr.wakeUpSourse = 0; 
-						userProcessMode = USER_PROCESS_ACTIVE_MODE;				  				
+							HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);							
+						}						
 					}
-					else 
-						userProcessMgr.wakeUpSourse = 0;  
-		  		}
+					userProcessMgr.wakeUpSourse = 0; 
+					Util_stopClock(&userProcessClock);	
+					Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD);
+					userProcessMode = USER_PROCESS_ACTIVE_MODE;				  				
+				}		  		
 			}
 			break;	
 			
@@ -775,8 +671,8 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  break;
 	  
   	case  SBO_LORA_STATUSPIN_EVT:
-	  userProcessMgr.rfStatusFlg = TRUE;  
-	  userProcessMgr.wakeUpSourse |= 0x08;
+      break; 
+	
     default:
       // Do nothing.
       break;
@@ -873,7 +769,6 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 				else
 				{
 					tagInf_t.tagNum = 0;
-					scanRes = 0;
 					userProcess_State = USER_PROCESS_RUNNING;
 					userProcessMode   = USER_PROCESS_NORAMAL_MODE;
 				}		 
@@ -882,30 +777,31 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 			  
 			case USER_PROCESS_RUNNING :
 			{	  
-			  	if(scanRes == 0)
+			  	if(tagInf_t.tagNum  == 0)
 				{
-					userProcess_State = USER_PROCESS_READY;
-					userProcessMgr.abNormalScanTime = 1;		
+					HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);		
 				}
-				
-				//涮选出本次搜索rssi最大设备并暂存到用户区
- 				if(userTxInf.txTagNum >= DEFAULT_MAX_SCAN_RES)
- 		    		return;  
+				else
+				{				
+					//涮选出本次搜索rssi最大设备并暂存到用户区
+ 					if(userTxInf.txTagNum >= DEFAULT_MAX_RFSENDTAG_NUM)
+ 		    			return;  
 
- 				for(; scanRes>0; scanRes--)
- 				{
- 					if(scanRes -1 == 0)
+ 					for(; tagInf_t.tagNum >0; tagInf_t.tagNum --)
  					{
- 						memcpy(&userTxInf.tagInfBuf_t[userTxInf.txTagNum], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));	
- 						continue;
- 					}
- 					else
- 					{
- 			  			if(tagInf_t.tagInfBuf_t[scanRes-1].rssi < tagInf_t.tagInfBuf_t[scanRes-2].rssi)
- 							memcpy(&tagInf_t.tagInfBuf_t[scanRes-2], &tagInf_t.tagInfBuf_t[scanRes-1], sizeof(tagInfStruct));							
- 					}		  
- 				}		
-				userTxInf.txTagNum ++;
+ 						if(tagInf_t.tagNum  -1 == 0)
+ 						{
+ 							memcpy(&userTxInf.tagInfBuf_t[userTxInf.txTagNum], &tagInf_t.tagInfBuf_t[tagInf_t.tagNum -1], sizeof(tagInfStruct));	
+ 							continue;
+ 						}
+ 						else
+ 						{
+ 			  				if(tagInf_t.tagInfBuf_t[tagInf_t.tagNum -1].rssi < tagInf_t.tagInfBuf_t[tagInf_t.tagNum -2].rssi)
+ 								memcpy(&tagInf_t.tagInfBuf_t[tagInf_t.tagNum -2], &tagInf_t.tagInfBuf_t[tagInf_t.tagNum -1], sizeof(tagInfStruct));							
+ 						}		  
+ 					}		
+					userTxInf.txTagNum ++;
+				}
 			}
 			break;
 			  
@@ -931,7 +827,6 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 				else
 				{
 					tagInf_t.tagNum = 0;
-					scanRes = 0;
 					userProcess_State = USER_PROCESS_RUNNING;
 					userProcessMode   = USER_PROCESS_NORAMAL_MODE;		
 				}				 		
@@ -984,6 +879,7 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
 	uint8 i;
  	uint8 majoroffset;
  	uint8 uuidoffset;
+	uint8 tagNum;
  	uint8 *ptr;
  	
  	if((pData == NULL) && (pAddr == NULL))
@@ -997,11 +893,12 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
  	if(memcmp(&ptr[uuidoffset], weiXinUuid, sizeof(weiXinUuid)) != 0)
  	  	return;
  
+	tagNum = tagInf_t.tagNum ;
    	// If result count not at max
-   	if ( scanRes < DEFAULT_MAX_SCAN_RES )
+   	if ( tagNum < DEFAULT_MAX_SCAN_RES )
    	{
 		// Check if device is already in scan results
-		for ( i = 0; i < scanRes; i++ )
+		for ( i = 0; i < tagNum; i++ )
 		{
 			if (memcmp(pAddr, devList[i].addr, B_ADDR_LEN) == 0)
 			{
@@ -1009,18 +906,17 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
 			}
 		}
 		// Add addr to scan result list
-		memcpy(devList[scanRes].addr, pAddr, B_ADDR_LEN );
- 
-		majoroffset = BEELINKER_ADVMAJOR_OFFSET; 
-		memcpy((void *)(&tagInf_t.tagInfBuf_t[scanRes].major[0]), (void *)&ptr[majoroffset], sizeof(uint32));
+		memcpy(devList[tagNum].addr, pAddr, B_ADDR_LEN );
 
-		tagInf_t.tagInfBuf_t[scanRes].tagIndex = tagInf_t.index;
+		majoroffset = BEELINKER_ADVMAJOR_OFFSET; 
+		memcpy((void *)(&tagInf_t.tagInfBuf_t[tagNum].major[0]), (void *)&ptr[majoroffset], sizeof(uint32));
+
+		tagInf_t.tagInfBuf_t[tagNum].tagIndex = tagInf_t.index;
 		
-		tagInf_t.tagInfBuf_t[scanRes].rssi     = 0xFF - rssi;
+		tagInf_t.tagInfBuf_t[tagNum].rssi     = 0xFF - rssi;
  		
 		// Increment scan result count
-		scanRes++;
-		tagInf_t.tagNum = scanRes;
+		tagInf_t.tagNum ++;
 	}
 }
 
@@ -1059,7 +955,12 @@ void SimpleBLEObserver_loraStatusHandler(uint8 pins)
  */
 static void SimpleBLEObserver_userclockHandler(UArg arg)
 {
-  Util_startClock(&userProcessClock);
+  // Store the event.
+  events |= arg;
+
+  // Wake up the application.
+  Semaphore_post(sem);
+  
   PowerCC26XX_injectCalibration(); 
 }
 /*********************************************************************
@@ -1090,6 +991,100 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t state,
   }
 
   return FALSE;
+}
+
+static void SimpleBLEObserver_performPeriodicTask(void)
+{
+   	uint8 res = 0; 
+	
+	userProcessMgr.clockCounter ++;
+	
+	if(userProcessMgr.clockCounter == userNvramInf.txinterval)
+	{
+		sx1278_StatusPin_Disable();
+							
+		if( RFLR_STATE_SLEEP == rfstatus)
+		{
+			sx1278_OutputLowPw();
+			UserProcess_LoraInf_Send();
+		}
+		userTxInf.status &= ~(1<<3); 
+	}
+	else if(userProcessMgr.clockCounter < userNvramInf.txinterval)
+	{
+		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                        DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                        DEFAULT_DISCOVERY_WHITE_LIST );	
+	}
+
+	if(userProcessMgr.clockCounter >= userNvramInf.txinterval)
+	{
+		if(userProcessMgr.memsActiveFlg == TRUE)
+		{
+			userProcessMgr.memsActiveFlg = FALSE;
+			res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+			if(!res)
+			{
+				HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
+			}						
+		}	
+	}	
+	
+	if(RFLR_STATE_RX_RUNNING == rfstatus)
+	{
+		userProcessMgr.rfrxtimeout ++;
+		/* 接收超时，强制进入Sleep模式 */
+		if( userProcessMgr.rfrxtimeout >= DEFAULT_RFRXTIMOUT_TIME)
+		{
+			sx1278Lora_SetOpMode( RFLR_OPMODE_STANDBY );
+			Task_sleep(5*1000/Clock_tickPeriod);
+			sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+			sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
+			sx1278_LowPowerMgr();
+			serProcessMgr.clockCounter = 0;
+			userProcessMgr.rfrxtimeout = 0;
+		}
+	}
+	else if(RFLR_STATE_TX_RUNNING == rfstatus)
+	{	 
+		userProcessMgr.rftxtimeout ++;
+		if( userProcessMgr.rftxtimeout > DEFAULT_RFTXTIMOUT_TIME)
+		{
+			HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
+		}
+	}
+	
+	if(userProcessMgr.memsActiveFlg == FALSE)
+		userProcessMgr.memsNoActiveCounter ++;
+	else 
+		userProcessMgr.memsNoActiveCounter = 0;
+}
+
+static void SimpleBLEObserver_sleepModelTask(void)
+{
+  	uint8 res = 0; 
+	
+	if(userProcessMgr.memsActiveFlg == TRUE)
+	{
+		userProcessMgr.memsActiveCounter ++;
+		userProcessMgr.memsActiveFlg = FALSE;
+		res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+		if(!res)
+		{
+			HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
+		}
+						
+		if(userProcessMgr.memsActiveCounter >= DEFAULT_USER_MEMS_ACTIVE_TIME)
+		{
+			userProcessMgr.memsActiveFlg = FALSE;
+			userProcessMgr.memsActiveCounter = 0;			
+			userProcessMode = USER_PROCESS_ACTIVE_MODE;
+			Util_stopClock(&userProcessClock);	
+			Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD);	
+		}				
+	}
+//	else
+//		userProcessMgr.memsActiveCounter = 0;
 }
 
 #define LORATAT_MACADDRE_LEN    6
@@ -1200,7 +1195,7 @@ static void UserProcess_LoraInf_Send(void)
 	if(len <= DEFAULT_RFTRANSMIT_LEN)
 	{
 		sx1278Lora_EntryTx();
-		//Task_sleep(5*1000/Clock_tickPeriod);
+		Task_sleep(5*1000/Clock_tickPeriod);
 	  	sx1278Lora_SetRFStatus(RFLR_STATE_TX_RUNNING);
 		sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
 		sx1278Lora_RFSendBuf(rfRxTxBuf, len);
