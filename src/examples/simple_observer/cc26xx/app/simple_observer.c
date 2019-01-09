@@ -79,7 +79,8 @@
 #include "sx1278_lora.h"
 #include <ti/drivers/Power.h>
 #include <ti/drivers/power/PowerCC26XX.h>
-
+#include <ti/drivers/Watchdog.h>
+#include <inc/hw_wdt.h>
 /*********************************************************************
  * MACROS
  */
@@ -192,7 +193,7 @@ Task_Struct sboTask;
 Char sboTaskStack[SBO_TASK_STACK_SIZE];
 
 //Watchdog_Params params;
-//Watchdog_Handle watchdog;
+Watchdog_Handle watchdog;
 
 // events flag for internal application events.
 static uint16_t events;
@@ -241,6 +242,7 @@ static void SimpleBLEObserver_performPeriodicTask(void);
 static void SimpleBLEObserver_sleepModelTask(void);
 static bool UserProcess_LoraInf_Get(void);
 static void UserProcess_LoraInf_Send(void);
+void wdtInitFxn(void);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -357,6 +359,10 @@ void SimpleBLEObserver_init(void)
   appMsgQueue = Util_constructQueue(&appMsg);
   
   Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+  
+#ifdef IWDG_ENABLE
+  wdtInitFxn();
+#endif
 
   //获取当前设备的Mac地址，作为设备唯一识别ID
   getMacAddress(&userTxInf.devId[0]);
@@ -464,7 +470,11 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
         ICall_free(pMsg);
       }
     }
-		
+	
+#ifdef IWDG_ENABLE 
+	Watchdog_clear(watchdog);
+#endif
+	
 	switch(sx1278Lora_Process())
 	{
 		case RFLR_STATE_TX_DONE:
@@ -1041,7 +1051,7 @@ static void SimpleBLEObserver_performPeriodicTask(void)
 			sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
 			sx1278Lora_SetRFStatus(RFLR_STATE_SLEEP);	
 			sx1278_LowPowerMgr();
-			serProcessMgr.clockCounter = 0;
+			userProcessMgr.clockCounter = 0;
 			userProcessMgr.rfrxtimeout = 0;
 		}
 	}
@@ -1201,6 +1211,27 @@ static void UserProcess_LoraInf_Send(void)
 		sx1278Lora_RFSendBuf(rfRxTxBuf, len);
 	}	  	 	
 }
+
+#ifdef IWDG_ENABLE 
+void wdtCallback(UArg handle) 
+{
+	Watchdog_clear((Watchdog_Handle)handle);
+}
+
+void wdtInitFxn(void) 
+{
+	Watchdog_Params wp;
+	
+	Watchdog_init();
+	Watchdog_Params_init(&wp);
+	wp.callbackFxn    = (Watchdog_Callback)wdtCallback;
+	wp.debugStallMode = Watchdog_DEBUG_STALL_ON;
+	wp.resetMode      = Watchdog_RESET_ON;
+ 
+	watchdog = Watchdog_open(CC2650_WATCHDOG0, &wp);
+	Watchdog_setReload(watchdog, 1500000); // 1sec (WDT runs always at 48MHz/32)
+}
+#endif
 
 /*********************************************************************
  * @fn      getMacAddress

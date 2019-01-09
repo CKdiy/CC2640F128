@@ -225,6 +225,7 @@
                     <state>xdc_runtime_Assert_DISABLE_ALL</state>
                     <state>xdc_runtime_Log_DISABLE_ALL</state>
                     <state>USE_RCOSC</state>
+                    <state>IWDG_ENABLE</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -373,6 +374,7 @@
                     <state>$TI_RTOS_DRIVERS_BASE$</state>
                     <state>$PROJ_DIR$\..\..\..\..\..\src\common\cc26xx\rcosc</state>
                     <state>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app</state>
+                    <state>$TOOLKIT_DIR$\..\..\ti\tirtos_cc13xx_cc26xx_2_21_01_08\products\tidrivers_cc13xx_cc26xx_2_21_01_01\packages\ti\drivers\watchdog</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1198,6 +1200,21 @@
             </file>
             <file>
                 <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\dma\UDMACC26XX.h</name>
+            </file>
+        </group>
+        <group>
+            <name>WDT</name>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\Watchdog.c</name>
+            </file>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\Watchdog.h</name>
+            </file>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\watchdog\WatchdogCC26XX.c</name>
+            </file>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\watchdog\WatchdogCC26XX.h</name>
             </file>
         </group>
     </group>

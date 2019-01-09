@@ -259,15 +259,6 @@ typedef enum CC2650_WatchdogName {
 	CC2650_WATCHDOGCOUNT
 } CC2650_WatchdogName;
  
-/*!
-*  @def    SENSORTAG_CC2650_WatchdogName
-*  @brief  Enum of Watchdogs on the SENSORTAG_CC2650 dev board
-*/
-typedef enum SENSORTAG_CC2650_WatchdogName {
-	SENSORTAG_CC2650_WATCHDOG0 = 0,
-	SENSORTAG_CC2650_WATCHDOGCOUNT
-} SENSORTAG_CC2650_WatchdogName;
-
 
 #ifdef __cplusplus
 }

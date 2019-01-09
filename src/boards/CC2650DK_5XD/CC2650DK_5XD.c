@@ -469,19 +469,27 @@ const TRNGCC26XX_Config TRNGCC26XX_config[] = {
 */
  
 /* Watchdog objects */
-WatchdogCC26XX_Object watchdogCC26XXObjects[SENSORTAG_CC2650_WATCHDOGCOUNT];
+WatchdogCC26XX_Object watchdogCC26XXObjects[CC2650_WATCHDOGCOUNT];
  
 /* Watchdog configuration structure */
-const WatchdogCC26XX_HWAttrs watchdogCC26XXHWAttrs[SENSORTAG_CC2650_WATCHDOGCOUNT] = {
-    /* SENSORTAG_CC2650_WATCHDOG0 with 1 sec period at default CPU clock freq */
-    {WDT_BASE, INT_WDT_IRQ},
+const WatchdogCC26XX_HWAttrs watchdogCC26XXHWAttrs[CC2650_WATCHDOGCOUNT] = {
+  {
+   	.baseAddr = WDT_BASE,
+	.intNum   = INT_WDT_IRQ,
+	.reloadValue = 1000 /* Reload value in milliseconds */
+  },
+  //  WDT_BASE, INT_WDT_IRQ
 };
  
 const Watchdog_Config Watchdog_config[] = {
-    {&WatchdogCC26XX_fxnTable, &watchdogCC26XXObjects[0], &watchdogCC26XXHWAttrs[0]},
-    {NULL, NULL, NULL},
+    {
+	    .fxnTablePtr = &WatchdogCC26XX_fxnTable,
+		.object      = &watchdogCC26XXObjects[CC2650_WATCHDOG0], 
+		.hwAttrs     = &watchdogCC26XXHWAttrs[CC2650_WATCHDOG0]
+	},
+	{NULL, NULL, NULL},
 };
- 
+const uint_least8_t Watchdog_count = CC2650_WATCHDOGCOUNT;
 /*
 *  ============================= WatchDog End============================
 */

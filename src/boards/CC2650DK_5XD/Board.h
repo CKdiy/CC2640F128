@@ -54,7 +54,7 @@ extern "C" {
 
 #define     Board_UART0             Board_UART
 #define     Board_AES0              Board_AES
-#define     Board_WATCHDOG0         Board_WATCHDOG
+#define     Board_WATCHDOG0         Board_WDG0
 
 #define     Board_initGeneral() { \
     Power_init(); \

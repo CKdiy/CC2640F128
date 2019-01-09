@@ -1297,6 +1297,21 @@
                 <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\dma\UDMACC26XX.h</name>
             </file>
         </group>
+        <group>
+            <name>WDT</name>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\Watchdog.c</name>
+            </file>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\Watchdog.h</name>
+            </file>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\watchdog\WatchdogCC26XX.c</name>
+            </file>
+            <file>
+                <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\watchdog\WatchdogCC26XX.h</name>
+            </file>
+        </group>
     </group>
     <group>
         <name>ICall</name>
