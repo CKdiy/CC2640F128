@@ -1190,6 +1190,21 @@
     <group>
         <name>Drivers</name>
         <group>
+            <name>AUXADC</name>
+            <file>
+                <name>$CC26XXWARE$\driverlib\aon_wuc.h</name>
+            </file>
+            <file>
+                <name>$CC26XXWARE$\driverlib\aux_adc.c</name>
+            </file>
+            <file>
+                <name>$CC26XXWARE$\driverlib\aux_adc.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\auxadc.c</name>
+            </file>
+        </group>
+        <group>
             <name>Display</name>
             <file>
                 <name>$TI_RTOS_DRIVERS_BASE$\ti\mw\display\Display.c</name>
