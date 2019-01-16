@@ -1093,6 +1093,12 @@
         </file>
     </group>
     <group>
+        <name>Common</name>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\crc.c</name>
+        </file>
+    </group>
+    <group>
         <name>Drivers</name>
         <group>
             <name>AUXADC</name>
