@@ -1178,6 +1178,9 @@
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\simple_observer.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\snv.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\tagmgr.h</name>
         </file>
         <file>
