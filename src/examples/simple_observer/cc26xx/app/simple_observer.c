@@ -81,6 +81,8 @@
 #include <ti/drivers/power/PowerCC26XX.h>
 #include <ti/drivers/Watchdog.h>
 #include <inc/hw_wdt.h>
+#include "snv.h"
+#include "auxadc.h"
 /*********************************************************************
  * MACROS
  */
@@ -95,7 +97,6 @@
 // Scan duration in ms
 #define DEFAULT_SCAN_DURATION_10ms            10
 #define DEFAULT_SCAN_DURATION_100ms           100
-
 
 // Discovery mode (limited, general, all)
 #define DEFAULT_DISCOVERY_MODE                DEVDISC_MODE_ALL
@@ -132,6 +133,7 @@
 #define DEFAULT_RFRXTIMOUT_TIME                2
 #define DEFAULT_RFTXTIMOUT_TIME                2
 #define DEFAULT_MAX_RFSENDTAG_NUM              4
+#define DEFAULT_SOSTICK_NUM                    3   
 /*********************************************************************
  * TYPEDEFS
  */
@@ -363,11 +365,17 @@ void SimpleBLEObserver_init(void)
 #ifdef IWDG_ENABLE
   wdtInitFxn();
 #endif
-
+  
+  Nvram_Init();
+  
+  if(!adc_OneShot_Read())
+	userTxInf.status = 1;
+  else
+	userTxInf.status = 0;
+  
   //获取当前设备的Mac地址，作为设备唯一识别ID
   getMacAddress(&userTxInf.devId[0]);
   //config user inf
-  userTxInf.status       = 0;
   userTxInf.txTagNum     = 0;
   userTxInf.tagInfBuf_t  = (tagInfStruct *)userTxList;
   userTxInf.interval[0]  = DEFAULT_USER_TX_INTERVAL_TIME >> 8;
@@ -563,30 +571,33 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					// Perform periodic application task
 					SimpleBLEObserver_performPeriodicTask();
 				}
-			  			  			  
-				if((RFLR_STATE_TX_RUNNING != rfstatus) && (RFLR_STATE_RX_RUNNING != rfstatus) && (RFLR_STATE_RX_DONE != rfstatus))
+			  	
+				if(userProcessMgr.sosstatustick == 0)
 				{
-			  		if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
+					if((RFLR_STATE_TX_RUNNING != rfstatus) && (RFLR_STATE_RX_RUNNING != rfstatus) && (RFLR_STATE_RX_DONE != rfstatus))
 					{
-						if( RFLR_STATE_SLEEP != rfstatus )
+			  			if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
 						{
-							sx1278_OutputLowPw();
-							sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
-							sx1278_LowPowerMgr();
-						}
+							if( RFLR_STATE_SLEEP != rfstatus )
+							{
+								sx1278_OutputLowPw();
+								sx1278Lora_SetOpMode(RFLR_OPMODE_SLEEP);
+								sx1278_LowPowerMgr();
+							}
 						
-						userProcessMgr.memsActiveFlg = FALSE;
-						userProcessMode = USER_PROCESS_SLEEP_MODE;
-						userProcessMgr.memsActiveCounter = 0;
-						tagInf_t.index = 0;
-						userProcessMgr.clockCounter = 0;
-						userTxInf.txTagNum = 0;
-						userProcessMgr.memsNoActiveCounter = 0;
-						Util_stopClock(&userProcessClock);						
-						Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
-					}
-				}																									
-		  	}
+							userProcessMgr.memsActiveFlg = FALSE;
+							userProcessMode = USER_PROCESS_SLEEP_MODE;
+							userProcessMgr.memsActiveCounter = 0;
+							tagInf_t.index = 0;
+							userProcessMgr.clockCounter = 0;
+							userTxInf.txTagNum = 0;
+							userProcessMgr.memsNoActiveCounter = 0;
+							Util_stopClock(&userProcessClock);						
+							Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
+						}
+					}																									
+		  		}
+			}
 			break;
 			
 	    case USER_PROCESS_SLEEP_MODE:
@@ -718,7 +729,8 @@ static void SimpleBLEObserver_handleKeys(uint8 shift, uint8 keys)
   if(keys & KEY_SOS)
   {
   	userTxInf.status |= 1<<3;
-	userProcessMgr.clockCounter = 4;
+	userProcessMgr.clockCounter  = 3;
+	userProcessMgr.sosstatustick = 1;
   }
 }
 
@@ -1018,7 +1030,16 @@ static void SimpleBLEObserver_performPeriodicTask(void)
 			sx1278_OutputLowPw();
 			UserProcess_LoraInf_Send();
 		}
-		userTxInf.status &= ~(1<<3); 
+		
+		if(userProcessMgr.sosstatustick !=0)
+		{
+			userProcessMgr.sosstatustick ++;
+			if(userProcessMgr.sosstatustick > DEFAULT_SOSTICK_NUM)
+			{
+				userTxInf.status &= ~(1<<3);   
+				userProcessMgr.sosstatustick  = 0;
+			}
+		}
 	}
 	else if(userProcessMgr.clockCounter < userNvramInf.txinterval)
 	{
@@ -1067,7 +1088,7 @@ static void SimpleBLEObserver_performPeriodicTask(void)
 	if(userProcessMgr.memsActiveFlg == FALSE)
 		userProcessMgr.memsNoActiveCounter ++;
 	else 
-		userProcessMgr.memsNoActiveCounter = 0;
+		userProcessMgr.memsNoActiveCounter = 0;	
 }
 
 static void SimpleBLEObserver_sleepModelTask(void)

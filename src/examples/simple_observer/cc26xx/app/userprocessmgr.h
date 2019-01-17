@@ -62,6 +62,7 @@ typedef struct
 	uint8 wakeUpSourse;      //value:0x00 RTC ,0x02 Mems ,0x04 key, 0x08 LoraTX/RX INT
 	uint8 rftxtimeout;
 	uint8 rfrxtimeout;
+	uint8 sosstatustick;
 }tUserProcessMgr;
 
 typedef struct 
