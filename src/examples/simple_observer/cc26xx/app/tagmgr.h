@@ -18,7 +18,10 @@
  */
 #define BEELINKER_ADVDATA_LEN       30 
 #define BEELINKER_ADVUUID_OFFSET    9
-#define BEELINKER_ADVMAJOR_OFFSET   25
+#define BEELINKER_ADVMINOR_OFFSET   27
+
+#define LORATAG_INFTX_FIX     		0xFE    
+#define LORATAG_INFRX_FIX     		0xBE   
 /*********************************************************************
  * VARIABLES
  */
@@ -48,12 +51,12 @@ typedef union
 {
 	struct
 	{		
-		uint8_t     beaconNum_1		:2;      // Bit2~ Bit0
-		uint8_t     beaconNum_2     :2;      // Bit5~ Bit3
-		uint8_t     beaconNum_3     :2;      // Bit8 ~Bit6
-		uint8_t     beaconNum_4     :2;      // Bit11~ Bit9
-		uint8_t     res    			:2;      // Bit13~ Bit12    reserve
-		uint8_t     sos    			:1;      // Bit14   sos
+		uint8_t     beaconNum_1		:3;      // Bit2~ Bit0
+		uint8_t     beaconNum_2     :3;      // Bit5~ Bit3
+		uint8_t     beaconNum_3     :3;      // Bit8 ~Bit6
+		uint8_t     beaconNum_4     :3;      // Bit11~ Bit9
+		uint8_t     acflag          :2;      // Bit13~ Bit12    Anti - collision flag bit
+		uint8_t     sos             :1;      // Bit14   sos
 		uint8_t     vbat    		:1;      // Bit15  Low voltage alarm
 	}bit_t;
 
@@ -116,13 +119,18 @@ typedef struct
 	uint8_t minor[2];
 }tagInfStruct;
 
+typedef struct
+{
+	uint8_t           pre;
+	payload_inf_n     payload_inf; 
+}loratag_pkt_hdr_t;
+
 /**
  *  Observer Structure
  */
 typedef struct
 {     
-	tagInfStruct *tagInfBuf_t;  //缓存收到的所有tag
-	uint16_t  index;	      
+	tagInfStruct *tagInfBuf_t;  //缓存收到的所有tag      
 	uint8_t   tagNum;        //tagNum <= 8  
 }observerInfStruct; 
 
@@ -131,26 +139,27 @@ typedef struct
  */
 typedef struct
 {   
-    uint8_t  devId[6];          //设备地址 
-	uint8_t  status;            // sos状态 & 电池电量 ？
-    uint8_t  interval[2];	    //lora上传间隔时间,单位：秒
-    uint8_t  txTagNum;          // txTagNum <= 4  上传Tag数量
+	loratag_pkt_hdr_t  loratag_pkt_hdr;
+	uint8_t  devId[2];          //设备地址 
+	device_up_inf_n    device_up_inf;
 	tagInfStruct *tagInfBuf_t;  // 单次上传的Tag信息
 }userTxStruct;
 
 typedef struct
 {
-	uint8_t           pre;
-	payload_inf_n     payload_inf; 
-}loratag_pkt_hdr_t;
+	uint32_t			crc32;
+	lora_para_n			loraPara_u;
+	tag_para_n			tagPara_u;
+	ble_para_n			blePara_u;
+}snv_device_inf_t;
 
 typedef struct
 {
-	uint32_t   			crc32;
+	uint8_t				devId[2];  
 	lora_para_n			loraPara_u;
 	tag_para_n			tagPara_u;
-	ble_para_n    		blePara_u;
-}snv_device_inf_t;
+	ble_para_n			blePara_u;
+}device_inf_t;
 
 typedef struct
 {

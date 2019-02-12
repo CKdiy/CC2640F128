@@ -47,9 +47,11 @@ typedef enum
 
 enum
 {    
-    TYPE_LORATAGUP          = 0x01,//¨¦¨ª¡¤Y?¡§¨¦?¡ä?LORATAG??
+	TYPE_LORATAGUP          = 0x00,   
     
-    TYPE_LORATAUPRESP       = 0x81,//¨ª?1????¡äLORATAG??
+	TYPE_TAGPARACONFIG      = 0x01,
+	
+	TYPE_TAGPARAUP          = 0x02,
 };
 
 typedef struct 
