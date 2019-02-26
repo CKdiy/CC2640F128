@@ -68,9 +68,12 @@ typedef struct
 
 typedef struct 
 {
-	uint8 txinterval;
-	uint8 sleeptime;
-}UserNvramInf_t;
+  	uint8  sleepDelay;
+	uint8  scanTimes;
+	uint16 timeForscanning;
+	uint16 txinterval;
+	uint16 txinterval_S;
+}UserTimeSeries_t;
 
 #define ntohs(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )
 #define htons(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )

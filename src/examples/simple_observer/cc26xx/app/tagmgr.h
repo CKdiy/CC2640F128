@@ -21,7 +21,9 @@
 #define BEELINKER_ADVMINOR_OFFSET   27
 
 #define LORATAG_INFTX_FIX     		0xFE    
-#define LORATAG_INFRX_FIX     		0xBE   
+#define LORATAG_INFRX_FIX     		0xBE
+
+#define ntohs(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )
 /*********************************************************************
  * VARIABLES
  */

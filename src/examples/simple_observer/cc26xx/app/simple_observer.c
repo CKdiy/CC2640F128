@@ -197,7 +197,7 @@ static Queue_Handle appMsgQueue;
 volatile UserProcessStates userProcess_State;
 static UserProcessMode userProcessMode;
 volatile UserProcessMgr_t userProcessMgr;
-UserNvramInf_t   userNvramInf;
+UserTimeSeries_t UserTimeSeries;
 // Task configuration
 Task_Struct sboTask;
 Char sboTaskStack[SBO_TASK_STACK_SIZE];
@@ -253,6 +253,7 @@ static void UserProcess_GetLoraUp_Pkt(void);
 static bool UserProcess_LoraInf_Get(void);
 static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len);
 void wdtInitFxn(void);
+void TagPara_Get(void);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -375,8 +376,6 @@ void SimpleBLEObserver_init(void)
   wdtInitFxn();
 #endif
   
-  Nvram_Init();
-  
   if(!adc_OneShot_Read())
 	userTxInf.device_up_inf.bit_t.vbat = 1;
   else
@@ -387,6 +386,9 @@ void SimpleBLEObserver_init(void)
   crc = crc16(0, rfRxTxBuf, B_ADDR_LEN);
   userTxInf.devId[0] = ( crc >> 8 ) & 0xFF;
   userTxInf.devId[1] = crc & 0xFF;
+  
+  Nvram_Init();
+  TagPara_Get();
   
   //config user inf
   userTxInf.tagInfBuf_t  = (tagInfStruct *)userTxList;
@@ -403,9 +405,8 @@ void SimpleBLEObserver_init(void)
   
   rcoscTimeTick = 0;
   scanTagNum = 0;
-  userNvramInf.sleeptime = RCOSC_CALIBRATION_PERIOD/1000;
-  userNvramInf.txinterval= DEFAULT_USER_TX_INTERVAL_TIME;
-  
+  UserTimeSeries.txinterval= DEFAULT_USER_TX_INTERVAL_TIME;
+
   // Setup Observer Profile
   {
     uint8 scanRes = DEFAULT_MAX_SCAN_RES;
@@ -506,9 +507,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	switch(userProcessMode)
 	{		
 		case USER_PROCESS_NORAMAL_MODE:
-		 	{ 
-			    sx1278Init();
-				sx1278_SetLoraPara(NULL);
+		 	{
+				sx1278Init();				
+				sx1278_SetLoraPara(userLoraPara);
 				sx1278_SetSleep();
 				sx1278_LowPowerMgr();
 
@@ -1096,7 +1097,7 @@ static void SimpleBLEObserver_performPeriodicTask(void)
                                     DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                     DEFAULT_DISCOVERY_WHITE_LIST );			
     rcoscTimeTick ++;
-	
+
     if(userProcessMgr.sosstatustick !=0)
     {
         userProcessMgr.sosstatustick ++;
@@ -1105,7 +1106,7 @@ static void SimpleBLEObserver_performPeriodicTask(void)
             userProcessMgr.sosstatustick  = 0;
         }
     }
-		
+	
 	if(RF_RX_RUNNING == SX1278.State)
 	{
 		userProcessMgr.rfrxtimeout ++;
@@ -1300,6 +1301,145 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 	}
 	
 	sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+}
+
+void TagPara_Get(void)
+{
+	uint8_t buf[10];
+	uint32_t crc; 
+	int8_t res;
+	
+	snv_device_inf_t *ptr = (snv_device_inf_t *)buf;
+	
+	if( Ble_ReadNv_Inf( BLE_NVID_DEVINF_START, (uint8_t *)ptr) == 0 )
+	{
+	  	crc = crc32(0, &buf[ sizeof(crc) ], sizeof(lora_para_n) + sizeof(tag_para_n) + sizeof(ble_para_n));
+		if( crc == ptr->crc32)
+		{
+			userLoraPara = (LoRaSettings_t *)rfRxTxBuf;
+			
+			/******************* LORA Para ***************/
+			if(ptr->loraPara_u.bit_t.power == 1)
+			{
+				userLoraPara->Power = 20;
+			}
+			
+			if( ptr->loraPara_u.bit_t.rate == 1)
+			{
+				userLoraPara->Coderate = 2;
+			}
+			
+			if( ptr->loraPara_u.bit_t.channel == 1)
+			{
+				userLoraPara->Channel = 470000000;
+			}
+			
+			/* Test Para */
+			userLoraPara->Bandwidth             = 7;
+			userLoraPara->Sf                    = 9;
+			userLoraPara->PreambleLen           = 8;
+			userLoraPara->LowDatarateOptimize   = FALSE;
+			userLoraPara->FixLen                = 0;
+			userLoraPara->PayloadLen            = 64;
+			userLoraPara->CrcOn                 = TRUE;
+			userLoraPara->FreqHopOn             = FALSE;
+			userLoraPara->HopPeriod             = 0;
+			userLoraPara->IqInverted            = TRUE;
+			userLoraPara->RxContinuous          = TRUE;
+			/******************* END LORA Para ***********/
+			
+			/*********** TAG Para ************************/
+			ptr->tagPara_u.tagPara = ntohs(ptr->tagPara_u.tagPara);
+			res = ptr->tagPara_u.bit_t.sleep_delay;	
+			switch(res)
+			{
+				case 0 :  UserTimeSeries.sleepDelay = 4; //4s
+				break;
+					
+				case 1 :  UserTimeSeries.sleepDelay = 8; //8s
+				break;
+					
+				case 2 :  UserTimeSeries.sleepDelay = 20; //20s
+				break;
+					
+				case 3 :  UserTimeSeries.sleepDelay = 60; //60s
+				break;
+				    
+				default:  UserTimeSeries.sleepDelay = 4; //4s 
+				break;
+			}
+			
+			res = ptr->tagPara_u.bit_t.scan_num ;
+			if( ( res < 4) && ( res >= 0))
+			{
+				UserTimeSeries.scanTimes = res + 1;
+			}
+			else
+			{
+				UserTimeSeries.scanTimes = 4;
+			}
+			
+			res = ptr->tagPara_u.bit_t.up_interval ;
+			if( ( res >= 0 ) && ( res < 10))
+			{
+				UserTimeSeries.txinterval = res + 1; //s
+			}
+			else 
+			{
+			  	switch( res )
+				{
+					case 10 :  UserTimeSeries.txinterval = 60; //1min
+					break;
+					
+					case 11 :  UserTimeSeries.txinterval = 120; //2min
+					break;
+					
+					case 12 :  UserTimeSeries.txinterval = 180; //3min
+					break;
+					
+					case 13 :  UserTimeSeries.txinterval = 300; //5min
+					break;
+					
+					case 14 :  UserTimeSeries.txinterval = 480; //8min
+					break;
+					
+					case 15 :  UserTimeSeries.txinterval = 600; //10min
+					break;					
+				    
+					default:  UserTimeSeries.txinterval = 4; //4s 
+					break;
+				}
+			}
+			
+			res = ptr->tagPara_u.bit_t.up_interval_s ;
+			if( ( res >= 0 ) && ( res < 6 ) )
+			{
+				UserTimeSeries.txinterval_S = ( res + 1 ) * 30; // 30s ~ 3min	
+			}
+			else if( ( res >= 6 ) && ( res < 12 ))
+			{
+				UserTimeSeries.txinterval_S = ( res - 5 ) * 300; // 5min ~ 30min
+			}
+			else
+			{
+				UserTimeSeries.txinterval_S = 3600;    //1h
+			}
+			/*********** END TAG Para ********************/
+									
+			/*********************** BLE Para ************/
+			if( ( ptr->blePara_u.blePara >0 ) && ( ptr->blePara_u.blePara < 10 ))
+			{
+				UserTimeSeries.timeForscanning = 100 * ptr->blePara_u.blePara;
+			}
+			else
+			{
+				UserTimeSeries.timeForscanning = 50;
+			}
+			/*******************END BLE Para *************/
+		}
+		else
+			userLoraPara = NULL;  
+	}
 }
 
 #ifdef IWDG_ENABLE 
