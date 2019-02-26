@@ -127,7 +127,7 @@
 //User Send Interval Time
 #define DEFAULT_USER_TX_INTERVAL_TIME         5
 #define DEFAULT_USER_MEMS_ACTIVE_TIME         3 
-#define DEFAULT_USER_MEMS_NOACTIVE_TIME       13  
+#define DEFAULT_USER_MEMS_NOACTIVE_TIME       2  
 // 1000 ms
 #define RCOSC_CALIBRATION_PERIOD              1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
@@ -243,6 +243,7 @@ void SimpleBLEObserver_keyChangeHandler(uint8 keys);
 void SimpleBLEObserver_memsActiveHandler(uint8 pins);
 void SimpleBLEObserver_loraStatusHandler(uint8 pins);
 
+
 static void SimpleBLEObserver_userClockHandler(UArg arg);
 
 static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
@@ -250,6 +251,7 @@ static uint8_t rcosc_injectCalibrationPostNotify(uint8_t eventType,
                                                  uint32_t *clientArg);
 static void SimpleBLEObserver_performPeriodicTask(void);
 static void SimpleBLEObserver_sleepModelTask(void);
+
 static void UserProcess_GetLoraUp_Pkt(void);
 static bool UserProcess_LoraInf_Get(void);
 static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len);
@@ -407,6 +409,10 @@ void SimpleBLEObserver_init(void)
   if( (UserTimeSeries.txinterval == 0) || (UserTimeSeries.txinterval == 0xFFFF) )
     UserTimeSeries.txinterval = 4; //4s
   
+  if( (UserTimeSeries.sleepDelay == 0) || (UserTimeSeries.sleepDelay == 0xFF))
+    UserTimeSeries.sleepDelay = 4; //4s
+  
+  UserTimeSeries.memsNoActiveTime = UserTimeSeries.txinterval * DEFAULT_USER_MEMS_NOACTIVE_TIME + UserTimeSeries.sleepDelay;
   //BLE的扫描次数不得大于发送间隔
   if( UserTimeSeries.txinterval < UserTimeSeries.scanTimes)
     UserTimeSeries.scanTimes = UserTimeSeries.txinterval;
@@ -627,15 +633,15 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				{
 					if((RF_IDLE == SX1278.State))
 					{
-			  			if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
-						{											
+			  			if(userProcessMgr.memsNoActiveCounter > UserTimeSeries.memsNoActiveTime + UserTimeSeries.sleepDelay )
+						{				
 							userProcessMgr.memsActiveFlg = FALSE;
 							userProcessMode = USER_PROCESS_SLEEP_MODE;
 							userProcessMgr.memsActiveCounter = 0;
 							userProcessMgr.memsNoActiveCounter = 0;
 							Util_stopClock(&loraUpClock);	
 							Util_stopClock(&userProcessClock);						
-							Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
+							Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);						
 						}
 					}																									
 		  		}
@@ -643,7 +649,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			break;
 			
 	    case USER_PROCESS_SLEEP_MODE:
-		  	{
+		  	{	 	
 			  	if (events & SBP_PERIODIC_EVT)
    			 	{	  
       				events &= ~SBP_PERIODIC_EVT;
@@ -653,7 +659,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					
 					Util_startClock(&userProcessClock);
     			}
-			  
+				
 				if(userProcessMgr.wakeUpSourse & 0x04)
 				{
 				  	if(userProcessMgr.memsActiveFlg == TRUE)
@@ -1077,7 +1083,6 @@ static void SimpleBLEObserver_userClockHandler(UArg arg)
   
   PowerCC26XX_injectCalibration(); 
 }
-
 /*********************************************************************
  * @fn      SimpleBLEObserver_enqueueMsg
  *
