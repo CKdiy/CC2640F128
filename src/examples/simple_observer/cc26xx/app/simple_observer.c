@@ -190,6 +190,7 @@ static uint8_t isEnabled = FALSE;
 static uint8_t rcoscTimeTick;
 static uint8_t scanTagNum; 
 static uint8_t loraUpPktLen; 
+static uint16_t bleScanTimeTick; 
 // Queue object used for app messages
 static Queue_Struct appMsg;
 static Queue_Handle appMsgQueue;
@@ -402,10 +403,17 @@ void SimpleBLEObserver_init(void)
   userProcessMode = USER_PROCESS_IDLE_MODE;
   userProcessMgr.rftxtimeout = 0;
   userProcessMgr.rfrxtimeout = 0;
+
+  if( (UserTimeSeries.txinterval == 0) || (UserTimeSeries.txinterval == 0xFFFF) )
+    UserTimeSeries.txinterval = 4; //4s
   
+  //BLE的扫描次数不得大于发送间隔
+  if( UserTimeSeries.txinterval < UserTimeSeries.scanTimes)
+    UserTimeSeries.scanTimes = UserTimeSeries.txinterval;
+	
   rcoscTimeTick = 0;
   scanTagNum = 0;
-  UserTimeSeries.txinterval= DEFAULT_USER_TX_INTERVAL_TIME;
+  bleScanTimeTick = 0;
 
   // Setup Observer Profile
   {
@@ -413,8 +421,11 @@ void SimpleBLEObserver_init(void)
     GAPObserverRole_SetParameter(GAPOBSERVERROLE_MAX_SCAN_RES, sizeof(uint8_t),
                                  &scanRes );
   }
-
+	
   // Setup GAP
+  if( UserTimeSeries.timeForscanning == 0)
+    UserTimeSeries.timeForscanning = DEFAULT_SCAN_DURATION_100ms;
+  
   GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
   GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
   
@@ -496,8 +507,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		events &= ~SBP_LORAUPDELAY_EVT;
 	  	
 		UserProcess_LoraInf_Send(rfRxTxBuf, loraUpPktLen);
-		
-		userTxInf.device_up_inf.tagPacketInf &= 0x8000;
 	}
 	
 #ifdef IWDG_ENABLE 
@@ -526,11 +535,10 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				if(!res)
 				{
 				  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
-				}  
+				} 
 				
-				// Setup GAP
-  				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
-  				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
+				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, UserTimeSeries.timeForscanning);
+				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, UserTimeSeries.timeForscanning);
 				
 #ifdef USE_RCOSC
 	RCOSC_enableCalibration();
@@ -542,7 +550,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				
 				/* Lora Up Timer */
 				Util_constructClock(&loraUpClock, SimpleBLEObserver_userClockHandler,
-                                            RCOSC_CALIBRATION_PERIOD_4s, 0, false, SBP_LORAUP_EVT);		
+                                            UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD, 0, false, SBP_LORAUP_EVT);		
 				
 				/* Lora Up Delay Timer */
 				Util_constructClock(&loraUpDelayClock, SimpleBLEObserver_userClockHandler,
@@ -564,16 +572,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			
 	    case USER_PROCESS_ACTIVE_MODE:
 		  	{				
-				if (events & SBP_PERIODIC_EVT)
-				{	
-					events &= ~SBP_PERIODIC_EVT;
-
-					// Perform periodic application task
-					SimpleBLEObserver_performPeriodicTask();
-					
-					Util_startClock(&userProcessClock);
-				}
-				else if(events & SBP_LORAUP_EVT)
+				if(events & SBP_LORAUP_EVT)
 				{
 					events &= ~SBP_LORAUP_EVT;
 					
@@ -584,10 +583,10 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					{
 					    res = (uint8_t)(SX1278.RssiValue + 200);
 					    srand( res );			  
-                        i = rand();
-                        res = ( i* loraUpPktLen ) & 0x7F ;
+						i = rand();
+						res = ( i* loraUpPktLen ) & 0x7F ;
 					
-                        Util_restartClock(&loraUpDelayClock, res);
+						Util_restartClock(&loraUpDelayClock, res);
 					}
 					
 					if( 3 == userTxInf.device_up_inf.bit_t.acflag )
@@ -596,6 +595,13 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					  userTxInf.device_up_inf.bit_t.acflag ++;
 										
 					Util_startClock(&loraUpClock);	
+					
+					userTxInf.device_up_inf.bit_t.beaconNum_1 = 0;
+					userTxInf.device_up_inf.bit_t.beaconNum_2 = 0;
+					userTxInf.device_up_inf.bit_t.beaconNum_3 = 0;
+					userTxInf.device_up_inf.bit_t.beaconNum_4 = 0;
+		   			bleScanTimeTick = 0;
+					rcoscTimeTick   = 0;
 					
 					if(userProcessMgr.memsActiveFlg == TRUE)
 					{
@@ -607,13 +613,23 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 						}						
 					}
 				}
+				else if (events & SBP_PERIODIC_EVT)
+				{	
+					events &= ~SBP_PERIODIC_EVT;
+
+					// Perform periodic application task
+					SimpleBLEObserver_performPeriodicTask();
+					
+					Util_startClock(&userProcessClock);
+				}
 			  	
 				if(userProcessMgr.sosstatustick == 0)
 				{
 					if((RF_IDLE == SX1278.State))
 					{
 			  			if(userProcessMgr.memsNoActiveCounter > DEFAULT_USER_MEMS_NOACTIVE_TIME)
-						{							
+						{											
+							userProcessMgr.memsActiveFlg = FALSE;
 							userProcessMode = USER_PROCESS_SLEEP_MODE;
 							userProcessMgr.memsActiveCounter = 0;
 							userProcessMgr.memsNoActiveCounter = 0;
@@ -722,6 +738,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  {
 	  	if( RF_TX_RUNNING == SX1278.State )
 		{
+			userProcessMgr.clockCounter = 0;
 			sx1278_TxDoneCallback();
 			userProcessMgr.rftxtimeout = 0;
 			sx1278_EnterRx();
@@ -798,7 +815,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
       {
 		if(USER_PROCESS_IDLE == userProcess_State)
 		{
-			//设备上电初始化完成即开启扫描,扫描时间10ms
+			//设备上电初始化完成即开启扫描,扫描时间100ms
 			GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                       		DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                       		DEFAULT_DISCOVERY_WHITE_LIST );
@@ -1093,11 +1110,18 @@ static uint8_t SimpleBLEObserver_enqueueMsg(uint8_t event, uint8_t state,
 
 static void SimpleBLEObserver_performPeriodicTask(void)
 {	
-    GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+	bleScanTimeTick ++;
+	if( bleScanTimeTick > UserTimeSeries.txinterval - UserTimeSeries.scanTimes)
+	{
+    	GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                     DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                    DEFAULT_DISCOVERY_WHITE_LIST );			
-    rcoscTimeTick ++;
-
+                                    DEFAULT_DISCOVERY_WHITE_LIST );		
+    	if( rcoscTimeTick == UserTimeSeries.scanTimes)
+        	rcoscTimeTick = 0;
+		
+    	rcoscTimeTick ++;
+	}
+	
     if(userProcessMgr.sosstatustick !=0)
     {
         userProcessMgr.sosstatustick ++;

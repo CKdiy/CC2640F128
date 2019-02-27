@@ -56,6 +56,7 @@ enum
 
 typedef struct 
 {
+  	uint16 clockCounter;
 	uint8 abNormalScanTime;	
 	uint8 memsActiveFlg;
 	uint8 memsNoActiveCounter;
