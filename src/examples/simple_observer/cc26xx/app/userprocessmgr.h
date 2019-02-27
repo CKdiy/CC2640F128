@@ -34,7 +34,7 @@ typedef enum
     USER_PROCESS_READY,
     USER_PROCESS_RUNNING,
     USER_PROCESS_TIMEOUT,
-}tUserProcessStates;
+}UserProcessStates;
 
 typedef enum
 {
@@ -43,7 +43,7 @@ typedef enum
     USER_PROCESS_ABNORMAL_MODE,
     USER_PROCESS_ACTIVE_MODE,
 	USER_PROCESS_SLEEP_MODE,
-}tUserProcessMode;
+}UserProcessMode;
 
 enum
 {    
@@ -57,7 +57,6 @@ enum
 typedef struct 
 {
 	uint8 abNormalScanTime;	
-	uint8 clockCounter;
 	uint8 memsActiveFlg;
 	uint8 memsNoActiveCounter;
 	uint8 memsActiveCounter;
@@ -65,13 +64,13 @@ typedef struct
 	uint8 rftxtimeout;
 	uint8 rfrxtimeout;
 	uint8 sosstatustick;
-}tUserProcessMgr;
+}UserProcessMgr_t;
 
 typedef struct 
 {
 	uint8 txinterval;
 	uint8 sleeptime;
-}tUserNvramInf;
+}UserNvramInf_t;
 
 #define ntohs(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )
 #define htons(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )

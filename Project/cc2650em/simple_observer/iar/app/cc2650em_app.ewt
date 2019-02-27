@@ -1291,16 +1291,25 @@
         <group>
             <name>SX1278</name>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_hal.c</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\radio\radio.h</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_hal.h</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\radio\sx1276_regs_fsk.h</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_lora.c</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\radio\sx1276_regs_lora.h</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\sx1278_lora.h</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\radio\sx1278_hal.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\radio\sx1278_hal.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\radio\sx1278_lora.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\radio\sx1278_lora.h</name>
             </file>
         </group>
         <group>

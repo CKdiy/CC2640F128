@@ -206,13 +206,11 @@ bool Open_sx1278_PINs(void)
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 	if(sx1278CsnPin == NULL)
 	  return FALSE;
-	
-	/* Delay ~10 ms for sx1278 to be powered up. */
-    Task_sleep(10*1000/Clock_tickPeriod);
-	
-    /* Clear reset (set high)*/
-    PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 1);
    
+	Task_sleep(10*1000/Clock_tickPeriod);
+	
+	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 1);
+	
 	return TRUE;
 }
 
@@ -275,20 +273,6 @@ uint8_t Read_sx1278Dio0_Pin(void)
 }
 
 /*********************************************************************
- * @fn      Reset_sx1278
- *
- * @brief   Reset sx1278.
- *
- * @param   none
- *
- * @return none 
- */
-void Reset_sx1278(void)
-{
-	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 0);
-}
-
-/*********************************************************************
  * @fn      Enable_sx1278
  *
  * @brief   Enable sx1278.
@@ -300,6 +284,20 @@ void Reset_sx1278(void)
 void Enable_sx1278(void)
 {
 	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 1);
+}
+
+/*********************************************************************
+ * @fn      Disable_sx1278
+ *
+ * @brief   Disable sx1278.
+ *
+ * @param   none
+ *
+ * @return  none 
+ */
+void Disable_sx1278(void)
+{
+	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 0);
 }
 
 void sx1278_SPI_CSN(bool enable)
