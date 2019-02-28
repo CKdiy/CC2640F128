@@ -24,18 +24,6 @@
 /*********************************************************************
  * MACROS
  */
-
-/*********************************************************************
- * TYPEDEFS
- */
-typedef enum
-{
-    USER_PROCESS_IDLE,
-    USER_PROCESS_READY,
-    USER_PROCESS_RUNNING,
-    USER_PROCESS_TIMEOUT,
-}UserProcessStates;
-
 typedef enum
 {
 	USER_PROCESS_IDLE_MODE,
@@ -54,14 +42,23 @@ enum
 	TYPE_TAGPARAUP          = 0x02,
 };
 
+enum 
+{    
+	WAKEUP_SOURSE_RTC  = 0x01,     //default
+    
+	WAKEUP_SOURSE_MEMS = 0x02,
+	
+	WAKEUP_SOURSE_KEY  = 0x04,
+	
+	WAKEUP_SOURSE_LORA = 0x08,
+};
+
 typedef struct 
 {
-  	uint16 clockCounter;
-	uint8 abNormalScanTime;	
 	uint8 memsActiveFlg;
 	uint8 memsNoActiveCounter;
 	uint8 memsActiveCounter;
-	uint8 wakeUpSourse;      //value:0x00 RTC ,0x02 Mems ,0x04 key, 0x08 LoraTX/RX INT
+	uint8 wakeUpSourse;      //value:0x01 RTC ,0x02 Mems ,0x04 key, 0x08 LoraTX/RX INT
 	uint8 rftxtimeout;
 	uint8 rfrxtimeout;
 	uint8 sosstatustick;

@@ -93,11 +93,10 @@
  */
 
 // Maximum number of scan responses
-#define DEFAULT_MAX_SCAN_RES                  8
+#define DEFAULT_MAX_SCAN_RES                  30
 
 // Scan duration in ms
-#define DEFAULT_SCAN_DURATION_10ms            10
-#define DEFAULT_SCAN_DURATION_100ms           100
+#define DEFAULT_SCAN_DURATION_500ms           500
 
 // Discovery mode (limited, general, all)
 #define DEFAULT_DISCOVERY_MODE                DEVDISC_MODE_ALL
@@ -125,18 +124,16 @@
 #define SBP_LORAUPDELAY_EVT                   0x0040
 
 //User Send Interval Time
-#define DEFAULT_USER_TX_INTERVAL_TIME         5
+#define DEFAULT_USER_TX_INTERVAL_TIME         4
 #define DEFAULT_USER_MEMS_ACTIVE_TIME         3 
 #define DEFAULT_USER_MEMS_NOACTIVE_TIME       2  
 // 1000 ms
 #define RCOSC_CALIBRATION_PERIOD              1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
-#define RCOSC_CALIBRATION_PERIOD_4s           4000
 #define RCOSC_CALIBRATION_PERIOD_15s          15000
 #define DEFAULT_RFTRANSMIT_LEN                55
 #define DEFAULT_RFRXTIMOUT_TIME                2
 #define DEFAULT_RFTXTIMOUT_TIME                2
-#define DEFAULT_MAX_RFSENDTAG_NUM              4
 #define DEFAULT_SOSTICK_NUM                    12 
 #define DEFAULT_SINGLESTORMAX_NUM              4   
 #define DEFAULT_UPBLEINFMAX_NUM                16   
@@ -195,7 +192,6 @@ static uint16_t bleScanTimeTick;
 static Queue_Struct appMsg;
 static Queue_Handle appMsgQueue;
 
-volatile UserProcessStates userProcess_State;
 static UserProcessMode userProcessMode;
 volatile UserProcessMgr_t userProcessMgr;
 UserTimeSeries_t UserTimeSeries;
@@ -397,17 +393,16 @@ void SimpleBLEObserver_init(void)
   userTxInf.tagInfBuf_t  = (tagInfStruct *)userTxList;
   tagInf_t.tagNum        = 0;
   tagInf_t.tagInfBuf_t   = (tagInfStruct *)devInfList;
-  userProcess_State      = USER_PROCESS_IDLE;
   userProcessMode        = USER_PROCESS_IDLE_MODE;
 
-  userProcessMgr.abNormalScanTime = 0;
   userProcessMgr.memsActiveFlg = 0;
-  userProcessMode = USER_PROCESS_IDLE_MODE;
+  userProcessMgr.wakeUpSourse = WAKEUP_SOURSE_RTC;
+  userProcessMode = USER_PROCESS_IDLE_MODE; 
   userProcessMgr.rftxtimeout = 0;
   userProcessMgr.rfrxtimeout = 0;
 
   if( (UserTimeSeries.txinterval == 0) || (UserTimeSeries.txinterval == 0xFFFF) )
-    UserTimeSeries.txinterval = 4; //4s
+    UserTimeSeries.txinterval = DEFAULT_USER_TX_INTERVAL_TIME; //4s
   
   if( (UserTimeSeries.sleepDelay == 0) || (UserTimeSeries.sleepDelay == 0xFF))
     UserTimeSeries.sleepDelay = 4; //4s
@@ -430,10 +425,10 @@ void SimpleBLEObserver_init(void)
 	
   // Setup GAP
   if( UserTimeSeries.timeForscanning == 0)
-    UserTimeSeries.timeForscanning = DEFAULT_SCAN_DURATION_100ms;
+    UserTimeSeries.timeForscanning = DEFAULT_SCAN_DURATION_500ms;
   
-  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
-  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_100ms);
+  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_500ms);
+  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_500ms);
   
   // add a white list entry
   if(DEFAULT_DISCOVERY_WHITE_LIST)
@@ -660,7 +655,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					Util_startClock(&userProcessClock);
     			}
 				
-				if(userProcessMgr.wakeUpSourse & 0x04)
+				if( userProcessMgr.wakeUpSourse & WAKEUP_SOURSE_MEMS )
 				{
 				  	if(userProcessMgr.memsActiveFlg == TRUE)
 					{
@@ -671,7 +666,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);							
 						}						
 					}
-					userProcessMgr.wakeUpSourse = 0; 
+					userProcessMgr.wakeUpSourse = WAKEUP_SOURSE_RTC; 
 					Util_startClock(&loraUpClock);
 					Util_stopClock(&userProcessClock);	
 					Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD);
@@ -731,12 +726,12 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 
     case SBO_KEY_CHANGE_EVT:
       SimpleBLEObserver_handleKeys(0, pMsg->hdr.state);
-	  userProcessMgr.wakeUpSourse |= 0x04;
+	  userProcessMgr.wakeUpSourse |= WAKEUP_SOURSE_KEY;
       break;
 	  
   	case SBO_MEMS_ACTIVE_EVT:
 	  userProcessMgr.memsActiveFlg = TRUE;
-	  userProcessMgr.wakeUpSourse |= 0x02;
+	  userProcessMgr.wakeUpSourse |= WAKEUP_SOURSE_MEMS;
 	  Mems_ActivePin_Disable();
 	  break;
 	  
@@ -744,7 +739,6 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 	  {
 	  	if( RF_TX_RUNNING == SX1278.State )
 		{
-			userProcessMgr.clockCounter = 0;
 			sx1278_TxDoneCallback();
 			userProcessMgr.rftxtimeout = 0;
 			sx1278_EnterRx();
@@ -819,19 +813,15 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
   {
     case GAP_DEVICE_INIT_DONE_EVENT:
       {
-		if(USER_PROCESS_IDLE == userProcess_State)
-		{
-			//设备上电初始化完成即开启扫描,扫描时间100ms
-			GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                      		DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                      		DEFAULT_DISCOVERY_WHITE_LIST );
-		}
+	      //设备上电初始化完成即开启扫描,扫描时间500ms
+	      GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      	  DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      	  DEFAULT_DISCOVERY_WHITE_LIST );		
       }
       break;
 
     case GAP_DEVICE_INFO_EVENT:
 	  {
-		
 		if(pEvent->deviceInfo.eventType != GAP_ADRPT_SCAN_RSP)
 		{
 			SimpleBLEObserver_addDeviceInfo_Ex(pEvent->deviceInfo.addr,
@@ -844,121 +834,72 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 
     case GAP_DEVICE_DISCOVERY_EVENT:
       {
-      	// discovery complete
-		switch(userProcess_State)
-		{
-			case USER_PROCESS_IDLE :
+	      // discovery complete
+		  if( USER_PROCESS_IDLE_MODE == userProcessMode)
+		  {
+			if( 0 == tagInf_t.tagNum )		  
+				userProcessMode = USER_PROCESS_ABNORMAL_MODE; 
+		    else
 			{
-				if(tagInf_t.tagNum < 1)
-				{
-				    GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                      				DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                      				DEFAULT_DISCOVERY_WHITE_LIST );
-								
-					userProcessMgr.abNormalScanTime ++;
-					userProcess_State = USER_PROCESS_READY;
-				}
-				else
-				{
-					tagInf_t.tagNum = 0;
-					userProcess_State = USER_PROCESS_RUNNING;
-					userProcessMode   = USER_PROCESS_NORAMAL_MODE;
-				}		 
+				userProcessMode = USER_PROCESS_NORAMAL_MODE;	
+				tagInf_t.tagNum = 0;
 			}
-			  break; 
+		  }
+		  else
+		  {
+			  if( 0 == tagInf_t.tagNum )
+				return;
 			  
-			case USER_PROCESS_RUNNING :
-			{	  
-			  	if(tagInf_t.tagNum  == 0)
-				{
-					HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);		
-				}
-				else
-				{				
-				    //根据Rssi大小排序
-					for(i=0; i<tagInf_t.tagNum - 1; i++)
-					{
-						for(j=0; j<tagInf_t.tagNum-i-1; j++)
-						{
-							if(tagInf_t.tagInfBuf_t[j].rssi > tagInf_t.tagInfBuf_t[j+1].rssi)
-							{
-							    memcpy(&tagInf_t.tagInfBuf_t[tagInf_t.tagNum-1], &tagInf_t.tagInfBuf_t[j], sizeof(tagInfStruct));
-								memcpy(&tagInf_t.tagInfBuf_t[j], &tagInf_t.tagInfBuf_t[j+1], sizeof(tagInfStruct));
-								memcpy(&tagInf_t.tagInfBuf_t[j+1], &tagInf_t.tagInfBuf_t[tagInf_t.tagNum-1], sizeof(tagInfStruct));															
-							}												
-						}				
-					}
+			  //根据Rssi大小排序
+			  for(i=0; i<tagInf_t.tagNum - 1; i++)
+			  {
+				  for(j=0; j<tagInf_t.tagNum-i-1; j++)
+				  {
+					  if(tagInf_t.tagInfBuf_t[j].rssi > tagInf_t.tagInfBuf_t[j+1].rssi)
+					  {
+						  memcpy(&tagInf_t.tagInfBuf_t[tagInf_t.tagNum-1], &tagInf_t.tagInfBuf_t[j], sizeof(tagInfStruct));
+						  memcpy(&tagInf_t.tagInfBuf_t[j], &tagInf_t.tagInfBuf_t[j+1], sizeof(tagInfStruct));
+						  memcpy(&tagInf_t.tagInfBuf_t[j+1], &tagInf_t.tagInfBuf_t[tagInf_t.tagNum-1], sizeof(tagInfStruct));															
+					  }												
+				  }				
+			  }
 					
-					if(tagInf_t.tagNum > DEFAULT_SINGLESTORMAX_NUM)
-						tagInf_t.tagNum = DEFAULT_SINGLESTORMAX_NUM;
+			  if(tagInf_t.tagNum > DEFAULT_SINGLESTORMAX_NUM)
+				  tagInf_t.tagNum = DEFAULT_SINGLESTORMAX_NUM;
 					
-					if(scanTagNum + tagInf_t.tagNum > DEFAULT_UPBLEINFMAX_NUM)
-					  return;
+			  if(scanTagNum + tagInf_t.tagNum > DEFAULT_UPBLEINFMAX_NUM)
+				  return;
 					
-				    for(i=0; i<tagInf_t.tagNum; i++)
-					{
-					    memcpy(&userTxInf.tagInfBuf_t[scanTagNum + i], &tagInf_t.tagInfBuf_t[i], sizeof(tagInfStruct)); 
-					}
+			  for(i=0; i<tagInf_t.tagNum; i++)
+			  {
+				  memcpy(&userTxInf.tagInfBuf_t[scanTagNum + i], &tagInf_t.tagInfBuf_t[i], sizeof(tagInfStruct)); 
+			  }
 					
-					scanTagNum += tagInf_t.tagNum; 
+			  scanTagNum += tagInf_t.tagNum; 
 					
-					if(rcoscTimeTick > 0)
-					{
-					    switch(rcoscTimeTick)
-						{
-							case 1: userTxInf.device_up_inf.bit_t.beaconNum_1 = tagInf_t.tagNum;
-							 break;
+			  if(rcoscTimeTick > 0)
+			  {
+				  switch(rcoscTimeTick)
+				  {
+					  case 1: userTxInf.device_up_inf.bit_t.beaconNum_1 = tagInf_t.tagNum;
+					  break;
 							 
-							case 2: userTxInf.device_up_inf.bit_t.beaconNum_2 = tagInf_t.tagNum;
-						  	break;
+					  case 2: userTxInf.device_up_inf.bit_t.beaconNum_2 = tagInf_t.tagNum;
+					  break;
 							
-							case 3: userTxInf.device_up_inf.bit_t.beaconNum_3 = tagInf_t.tagNum;
-						  	break;
+					  case 3: userTxInf.device_up_inf.bit_t.beaconNum_3 = tagInf_t.tagNum;
+					  break;
 							
-							case 4: userTxInf.device_up_inf.bit_t.beaconNum_4 = tagInf_t.tagNum;
-						  	break;
+					  case 4: userTxInf.device_up_inf.bit_t.beaconNum_4 = tagInf_t.tagNum;
+					  break;
 							
-							default:
-						  	break;
-						}
-					}
-					tagInf_t.tagNum = 0;
-				}
-			}
-			break;
-			  
-			case USER_PROCESS_READY: 
-			{
-				if(tagInf_t.tagNum < 1 )
-				{
-					if(userProcessMgr.abNormalScanTime > 1)
-					{
-						userProcessMode = USER_PROCESS_ABNORMAL_MODE;
-						userProcessMgr.abNormalScanTime = 0;
-					}
-					else if(userProcessMgr.abNormalScanTime == 1)
-					{
-						Task_sleep(10*1000/Clock_tickPeriod);
-				    	userProcessMgr.abNormalScanTime ++;
-						//Scan Again
-						GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                      				DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                      			 	DEFAULT_DISCOVERY_WHITE_LIST );					
-					}
-				}
-				else
-				{
-					tagInf_t.tagNum = 0;
-					userProcess_State = USER_PROCESS_RUNNING;
-					userProcessMode   = USER_PROCESS_NORAMAL_MODE;		
-				}				 		
-			}
-			break;
-			  
-			default:
-			  break;
-      	}
-	  }
+					  default:
+					  break;
+				  }  
+			  }
+			  tagInf_t.tagNum = 0;
+		  }		
+      }
       break;
 
     default:
