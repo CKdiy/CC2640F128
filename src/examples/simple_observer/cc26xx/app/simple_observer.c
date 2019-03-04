@@ -137,6 +137,7 @@
 #define DEFAULT_SOSTICK_NUM                    12 
 #define DEFAULT_SINGLESTORMAX_NUM              4   
 #define DEFAULT_UPBLEINFMAX_NUM                16   
+#define DEFAULT_PERDRVFAILMAX_TIME             4 
 /*********************************************************************
  * TYPEDEFS
  */
@@ -214,6 +215,7 @@ static uint8_t rfRxTxBuf[DEFAULT_RFTRANSMIT_LEN];
 const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 LoRaSettings_t *userLoraPara = NULL;
 extern SX1276_t  SX1278;
+snv_driverfailure_t snv_DriverFailure;
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
@@ -387,7 +389,6 @@ void SimpleBLEObserver_init(void)
   userTxInf.devId[1] = crc & 0xFF;
   
   Nvram_Init();
-  TagPara_Get();
   
   //config user inf
   userTxInf.tagInfBuf_t  = (tagInfStruct *)userTxList;
@@ -400,6 +401,8 @@ void SimpleBLEObserver_init(void)
   userProcessMode = USER_PROCESS_IDLE_MODE; 
   userProcessMgr.rftxtimeout = 0;
   userProcessMgr.rfrxtimeout = 0;
+  
+  TagPara_Get();
 
   if( (UserTimeSeries.txinterval == 0) || (UserTimeSeries.txinterval == 0xFFFF) )
     UserTimeSeries.txinterval = DEFAULT_USER_TX_INTERVAL_TIME; //4s
@@ -518,26 +521,33 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	{		
 		case USER_PROCESS_NORAMAL_MODE:
 		 	{
-				sx1278Init();				
-				sx1278_SetLoraPara(userLoraPara);
-				sx1278_SetSleep();
-				sx1278_LowPowerMgr();
+				if( sx1278Init() )
+				{
+					sx1278_SetLoraPara(userLoraPara);
+					sx1278_SetSleep();
+					sx1278_LowPowerMgr();
+				}
+				else
+				{
+					snv_DriverFailure.lora ++;
+					Ble_WriteNv_Inf(BLE_NVID_DRFLG_START, (uint8_t *)&snv_DriverFailure.mems);
+					/* reset or enter into  ABNORMAL_MODE*/
+					HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);					
+				}
 
 			    res = MemsOpen();
 			  	if(!res)
 				{
-				  /* reset or enter into  ABNORMAL_MODE*/
-				  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
+				    snv_DriverFailure.mems ++;
+				    Ble_WriteNv_Inf(BLE_NVID_DRFLG_START, (uint8_t *)&snv_DriverFailure.mems);
+				    /* reset or enter into  ABNORMAL_MODE*/
+				    HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
 				}
 				
 				MemsLowPwMgr();
 				
-				res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-				if(!res)
-				{
-				  HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
-				} 
-				
+				Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+	
 				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, UserTimeSeries.timeForscanning);
 				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, UserTimeSeries.timeForscanning);
 				
@@ -673,7 +683,13 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 					userProcessMode = USER_PROCESS_ACTIVE_MODE;				  				
 				}		  		
 			}
-			break;	
+			break;
+			
+	    case USER_PROCESS_PERIPHERALDRVFAIL_MODE:
+			{
+		  		Board_LedCtrl(Board_LED_ON);
+				userProcessMode = USER_PROCESS_IDLE_MODE;
+			}
 			
 		default:
 	 		break;
@@ -813,10 +829,13 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
   {
     case GAP_DEVICE_INIT_DONE_EVENT:
       {
-	      //设备上电初始化完成即开启扫描,扫描时间500ms
-	      GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
-                                      	  DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                      	  DEFAULT_DISCOVERY_WHITE_LIST );		
+		if( USER_PROCESS_PERIPHERALDRVFAIL_MODE != userProcessMode)
+		{
+	    	//设备上电初始化完成即开启扫描,扫描时间500ms
+	        GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                      	    DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                      	    DEFAULT_DISCOVERY_WHITE_LIST );	
+		}
       }
       break;
 
@@ -1409,6 +1428,20 @@ void TagPara_Get(void)
 		}
 		else
 			userLoraPara = NULL;  
+	}
+	
+	if( Ble_ReadNv_Inf( BLE_NVID_DRFLG_START, (uint8_t *)&snv_DriverFailure.crc32) == 0 )
+	{
+		crc = crc32(0, (uint8_t *)&snv_DriverFailure.mems, sizeof(uint16_t));	  
+		if( crc == snv_DriverFailure.crc32)
+		{	
+			if( (snv_DriverFailure.lora > DEFAULT_PERDRVFAILMAX_TIME) ||
+			 
+			  	(snv_DriverFailure.mems > DEFAULT_PERDRVFAILMAX_TIME))
+		 	{
+		      	userProcessMode = USER_PROCESS_PERIPHERALDRVFAIL_MODE;	
+		  	}	
+		}
 	}
 }
 
