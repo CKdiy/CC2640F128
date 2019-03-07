@@ -128,6 +128,7 @@
 #define DEFAULT_USER_MEMS_ACTIVE_TIME         3 
 #define DEFAULT_USER_MEMS_NOACTIVE_TIME       2  
 // 1000 ms
+#define RCOSC_CALIBRATION_PERIOD_400ms        400
 #define RCOSC_CALIBRATION_PERIOD              1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_CALIBRATION_PERIOD_15s          15000
@@ -183,7 +184,7 @@ static Clock_Struct loraUpDelayClock;
 
 // Power Notify Object for wake-up callbacks
 Power_NotifyObj injectCalibrationPowerNotifyObj;
-
+static uint8_t ledStatus;
 static uint8_t isEnabled = FALSE;
 static uint8_t rcoscTimeTick;
 static uint8_t scanTagNum; 
@@ -377,11 +378,6 @@ void SimpleBLEObserver_init(void)
   wdtInitFxn();
 #endif
   
-  if(!adc_OneShot_Read())
-	userTxInf.device_up_inf.bit_t.vbat = 1;
-  else
-	userTxInf.device_up_inf.bit_t.vbat = 0;
-  
   //获取当前设备的Mac地址，作为设备唯一识别ID
   getMacAddress(rfRxTxBuf);
   crc = crc16(0, rfRxTxBuf, B_ADDR_LEN);
@@ -401,6 +397,14 @@ void SimpleBLEObserver_init(void)
   userProcessMode = USER_PROCESS_IDLE_MODE; 
   userProcessMgr.rftxtimeout = 0;
   userProcessMgr.rfrxtimeout = 0;
+  
+  scanTagNum = adc_OneShot_Read();
+  if( 0 == scanTagNum)
+	userTxInf.device_up_inf.bit_t.vbat = 1;
+  else if(1 == scanTagNum)
+	userTxInf.device_up_inf.bit_t.vbat = 0;
+  else
+	userProcessMode = USER_PROCESS_LOWVOLTAGE_MODE;
   
   TagPara_Get();
 
@@ -441,8 +445,24 @@ void SimpleBLEObserver_init(void)
   
   // Start the Device
   VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
-
-  //Display_print0(dispHandle, 0, 0, "BLE Observer");
+  
+ #ifdef USE_RCOSC
+	RCOSC_enableCalibration();
+#endif // USE_RCOSC  	
+	
+  /* Base timer */
+  if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
+  {
+      Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
+                          RCOSC_CALIBRATION_PERIOD_400ms, 0, false, SBP_PERIODIC_EVT);  
+  }
+  else
+  {
+      Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
+                          RCOSC_CALIBRATION_PERIOD, 0, false, SBP_PERIODIC_EVT); 
+  }
+  
+  Util_startClock(&userProcessClock);
 }
 
 /*********************************************************************
@@ -551,14 +571,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, UserTimeSeries.timeForscanning);
 				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, UserTimeSeries.timeForscanning);
 				
-#ifdef USE_RCOSC
-	RCOSC_enableCalibration();
-#endif // USE_RCOSC  	
-	
-				/* Base timer */
-				Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
-                                            RCOSC_CALIBRATION_PERIOD, 0, false, SBP_PERIODIC_EVT);
-				
 				/* Lora Up Timer */
 				Util_constructClock(&loraUpClock, SimpleBLEObserver_userClockHandler,
                                             UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD, 0, false, SBP_LORAUP_EVT);		
@@ -568,7 +580,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
                                             RCOSC_CALIBRATION_PERIOD, 0, false, SBP_LORAUPDELAY_EVT);	
 				
 				/* Start Timer */
-				Util_startClock(&userProcessClock);
 				Util_startClock(&loraUpClock);
 				
 				userProcessMode = USER_PROCESS_ACTIVE_MODE;
@@ -646,7 +657,8 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 							userProcessMgr.memsNoActiveCounter = 0;
 							Util_stopClock(&loraUpClock);	
 							Util_stopClock(&userProcessClock);						
-							Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);						
+							Util_restartClock(&userProcessClock,RCOSC_CALIBRATION_PERIOD_3s);
+							
 						}
 					}																									
 		  		}
@@ -690,7 +702,26 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		  		Board_LedCtrl(Board_LED_ON);
 				userProcessMode = USER_PROCESS_IDLE_MODE;
 			}
+			break;
 			
+	    case USER_PROCESS_LOWVOLTAGE_MODE:
+		  {
+			if(events & SBP_PERIODIC_EVT)
+			{
+				events &= ~SBP_PERIODIC_EVT;
+					
+				Util_startClock(&userProcessClock);		
+				
+				if( ledStatus & 0x01)
+				  ledStatus &= ~(1<<0);
+				else
+				  ledStatus |= 1<<0;
+				
+				Board_LedCtrl(ledStatus);
+			}
+		  }
+		  break;
+		  
 		default:
 	 		break;
 	}  
@@ -829,7 +860,8 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
   {
     case GAP_DEVICE_INIT_DONE_EVENT:
       {
-		if( USER_PROCESS_PERIPHERALDRVFAIL_MODE != userProcessMode)
+		if( (USER_PROCESS_PERIPHERALDRVFAIL_MODE != userProcessMode) &&
+		    (USER_PROCESS_LOWVOLTAGE_MODE != userProcessMode))
 		{
 	    	//设备上电初始化完成即开启扫描,扫描时间500ms
 	        GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,

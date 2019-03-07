@@ -54,9 +54,11 @@ uint8_t adc_OneShot_Read(void)
 	
 	res = (adcValue/4095)*43;
 	
-	if(res < 300)
+	if((res <= 330) && (res > 300))
 	  return 0;
-	  
+	else if(res <= 300)
+	  return 0xF0;
+		
     return 1;
 }
 
