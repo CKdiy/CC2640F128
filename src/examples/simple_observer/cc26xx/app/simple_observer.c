@@ -257,6 +257,7 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len);
 static void SimpleBLEObserver_loraStatusTask(uint8_t rxtimeout, uint8_t txtimeout);
 void wdtInitFxn(void);
 void TagPara_Get(void);
+void Voltage_Check(void);
 void SleepToActive_Ready(void);
 void ActiveToSleep_Ready(void);
 /*********************************************************************
@@ -401,14 +402,7 @@ void SimpleBLEObserver_init(void)
   userProcessMgr.rftxtimeout = 0;
   userProcessMgr.rfrxtimeout = 0;
   
-  scanTagNum = adc_OneShot_Read();
-  if( 0 == scanTagNum)
-	userTxInf.device_up_inf.bit_t.vbat = 1;
-  else if(1 == scanTagNum)
-	userTxInf.device_up_inf.bit_t.vbat = 0;
-  else
-	userProcessMode = USER_PROCESS_LOWVOLTAGE_MODE;
-  
+  Voltage_Check();
   TagPara_Get();
 
   if( (UserTimeSeries.txinterval == 0) || (UserTimeSeries.txinterval == 0xFFFF) )
@@ -534,6 +528,15 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		events &= ~SBP_LORAUPDELAY_EVT;
 	  	
 		UserProcess_LoraInf_Send(rfRxTxBuf, loraUpPktLen);
+		
+		Voltage_Check();
+		
+		if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
+		{
+		 	Util_stopClock(&userProcessClock);	 
+			Util_stopClock(&loraUpClock);	
+			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_400ms);
+		}
 	}
 	else if(events & SBP_LORAUP_EVT)
 	{
@@ -1175,7 +1178,7 @@ static void SimpleBLEObserver_performPeriodicTask(void)
 	if(userProcessMgr.memsActiveFlg == FALSE)
 		userProcessMgr.memsNoActiveCounter ++;
 	else 
-		userProcessMgr.memsNoActiveCounter = 0;	
+		userProcessMgr.memsNoActiveCounter = 0;
 }
 
 static void SimpleBLEObserver_sleepModelTask(void)
@@ -1355,6 +1358,19 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 	}
 	
 	sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+}
+
+void Voltage_Check(void)
+{
+	uint8_t val; 
+	  
+	val = adc_OneShot_Read();
+  	if( 0 == val )
+		userTxInf.device_up_inf.bit_t.vbat = 1;
+  	else if( 1 == val )
+		userTxInf.device_up_inf.bit_t.vbat = 0;
+ 	else
+		userProcessMode = USER_PROCESS_LOWVOLTAGE_MODE;
 }
 
 void TagPara_Get(void)
