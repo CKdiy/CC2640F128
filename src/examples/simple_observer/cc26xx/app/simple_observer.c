@@ -132,13 +132,15 @@
 #define RCOSC_CALIBRATION_PERIOD              1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_CALIBRATION_PERIOD_15s          15000
+#define RCOSC_CALIBRATION_PERIOD_160ms        160  
 #define DEFAULT_RFTRANSMIT_LEN                55
-#define DEFAULT_RFRXTIMOUT_TIME                2
-#define DEFAULT_RFTXTIMOUT_TIME                2
+#define DEFAULT_RFRXTIMOUT_TIME                1
+#define DEFAULT_RFTXTIMOUT_TIME                1
 #define DEFAULT_SOSTICK_NUM                    12 
 #define DEFAULT_SINGLESTORMAX_NUM              4   
 #define DEFAULT_UPBLEINFMAX_NUM                16   
 #define DEFAULT_PERDRVFAILMAX_TIME             4 
+#define DEFAULT_CHANNELCHECK_TIME              4    
 /*********************************************************************
  * TYPEDEFS
  */
@@ -217,6 +219,7 @@ const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 LoRaSettings_t *userLoraPara = NULL;
 extern SX1276_t  SX1278;
 snv_driverfailure_t snv_DriverFailure;
+const uint32_t default_loraChannel[2]={499300000,496330000};
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
@@ -474,7 +477,6 @@ void SimpleBLEObserver_init(void)
 static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 {
   uint8 res; 
-  int i;
   // Initialize application
   SimpleBLEObserver_init();
 
@@ -543,16 +545,16 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		events &= ~SBP_LORAUP_EVT;
 					
 		UserProcess_GetLoraUp_Pkt();
-					
-		/* 根据RSSI获取随机延时 */
+		
 		if( loraUpPktLen != 0 )
-		{
-			res = (uint8_t)(SX1278.RssiValue + 200);
-			srand( res );			  
-			i = rand();
-			res = ( i* loraUpPktLen ) & 0x7F ;
-					
-			Util_restartClock(&loraUpDelayClock, res);
+		{	
+		    if( UserTimeSeries.channelCheckTime == 0 )
+				Util_restartClock(&loraUpDelayClock, 10);
+			else 
+			{
+			    Util_stopClock(&loraUpDelayClock);
+			    UserTimeSeries.channelCheckTime = 0;
+			}
 		}
 					
 		if( 3 == userTxInf.device_up_inf.bit_t.acflag )
@@ -1348,16 +1350,42 @@ static void UserProcess_GetLoraUp_Pkt(void)
 
 static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 {
-	sx1278_StatusPin_Disable();
-							
-	if( SX1278.State == RF_IDLE )
-	{ 		
-		sx1278_OutputLowPw();
-		sx1278_SendBuf(buf, len);
-		scanTagNum = 0;
-	}
+  	uint8_t i;
 	
-	sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+	if( SX1278.State == RF_IDLE )	 		
+		sx1278_OutputLowPw();
+			
+	if( sx1278IsChannelFree( SX1278.Modem, SX1278.LoRa.Channel, -100) ) 
+	{
+	  	sx1278_StatusPin_Disable();
+		sx1278_SendBuf(buf, len);
+		sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+		scanTagNum = 0;
+		UserTimeSeries.channelCheckTime = 0;
+	}
+	else
+	{
+	  	UserTimeSeries.channelCheckTime ++;
+		if( (UserTimeSeries.channelCheckTime == (DEFAULT_CHANNELCHECK_TIME + 1) )
+		    || (UserTimeSeries.channelCheckTime == (DEFAULT_CHANNELCHECK_TIME*2 + 1)) ) //准备调频检测
+		{
+		  	if( SX1278.LoRa.Channel == default_loraChannel[0] )
+				SX1278.LoRa.Channel =default_loraChannel[1];
+			else
+			    SX1278.LoRa.Channel = default_loraChannel[0];
+			
+			sx1278_SetRFChannel(SX1278.LoRa.Channel);		  
+		}
+		sx1278_LowPowerMgr();
+				
+		if( UserTimeSeries.channelCheckTime > DEFAULT_CHANNELCHECK_TIME)
+			i = UserTimeSeries.channelCheckTime - DEFAULT_CHANNELCHECK_TIME;
+		else 
+		    i = UserTimeSeries.channelCheckTime;
+		
+		if( i < DEFAULT_CHANNELCHECK_TIME + 1 )
+			Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*i);
+	}
 }
 
 void Voltage_Check(void)

@@ -140,7 +140,7 @@ void *sx1278_GetRxData(uint8_t *size);
 void sx1278_TxDoneCallback(void);
 void sx1278_SetSleep(void);
 void sx1278_SetStby(void);
-
+uint8_t sx1278IsChannelFree( RadioModems_t modem, uint32_t freq, int16_t rssiThresh );
 #ifdef __cplusplus
 }
 #endif

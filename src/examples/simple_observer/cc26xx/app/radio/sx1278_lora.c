@@ -30,11 +30,11 @@ uint8_t LoraRxBuffer[RF_DEFAULT_RXPACKET_LEN];
 // Default settings
 const LoRaSettings_t LoRaSettings =
 {
-    470000000,        // RFFrequency
+    496330000,        // RFFrequency
 	7,                // SignalBw [0: 7.8kHz, 1: 10.4 kHz, 2: 15.6 kHz, 3: 20.8 kHz, 4: 31.2 kHz,
                       // 5: 41.6 kHz, 6: 62.5 kHz, 7: 125 kHz, 8: 250 kHz, 9: 500 kHz, other: Reserved]
     20,               // Power
-    10,               // SpreadingFactor [6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096  chips]
+    8,                // SpreadingFactor [6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096  chips]
 	FALSE,            // LowDatarateOptimize
     2,                // ErrorCoding [1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8]
 	8,                //PreambleLen
@@ -68,7 +68,7 @@ void sx1278DelayMs(void)
 	
 	for(i=0;i<200;i++)
 	{
-		for(j=0;j<200;j++);
+		for(j=0;j<300;j++);
 	}
 }
 
@@ -459,15 +459,22 @@ void sx1278_SetRFChannel( uint32_t freq )
 uint8_t sx1278IsChannelFree( RadioModems_t modem, uint32_t freq, int16_t rssiThresh )
 {
     int16_t rssi = 0;
-	
+    uint8_t i;
+	  
     sx1278_SetModem( modem );
     sx1278_SetRFChannel( freq );
     sx1278_SetOpMode( RF_OPMODE_RECEIVER );
 	
-    sx1278DelayMs();
-	
-    rssi = sx1278_ReadRssi( modem );
+    for( i=0; i<10; i++ )
+    {
+        sx1278DelayMs();
+        rssi += sx1278_ReadRssi( modem );
+    }
+	    
     sx1278_SetOpMode( RFLR_OPMODE_SLEEP );
+	
+    rssi = rssi/10;
+	
     if( rssi > rssiThresh )
     {
         return FALSE;

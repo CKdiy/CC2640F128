@@ -74,6 +74,7 @@ typedef struct
 	uint16 txinterval;
 	uint16 txinterval_S;
 	uint16 memsNoActiveTime;
+	uint8  channelCheckTime;
 }UserTimeSeries_t;
 
 #define ntohs(x) (uint16_t)( ((uint16_t)(x<<8) & 0xFF00) | ((uint16_t)(x>>8) & 0x00FF) )
