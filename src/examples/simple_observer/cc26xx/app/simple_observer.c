@@ -131,7 +131,7 @@
 #define RCOSC_CALIBRATION_PERIOD_400ms        400
 #define RCOSC_CALIBRATION_PERIOD              1000
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
-#define RCOSC_CALIBRATION_PERIOD_15s          15000
+#define RCOSC_CALIBRATION_PERIOD_30s          30000
 #define RCOSC_CALIBRATION_PERIOD_160ms        160  
 #define DEFAULT_RFTRANSMIT_LEN                55
 #define DEFAULT_RFRXTIMOUT_TIME                1
@@ -638,7 +638,14 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			
 	    case USER_PROCESS_ABNORMAL_MODE:
 		  	{
-		  		;
+		  		if (events & SBP_PERIODIC_EVT)
+				{	
+					events &= ~SBP_PERIODIC_EVT;
+					GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+                                                    DEFAULT_DISCOVERY_ACTIVE_SCAN,
+                                                    DEFAULT_DISCOVERY_WHITE_LIST );	
+					Util_startClock(&userProcessClock);
+				}
 		  	}
 			break;
 			
@@ -910,13 +917,28 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 	      // discovery complete
 		  if( USER_PROCESS_IDLE_MODE == userProcessMode)
 		  {
-			if( 0 == tagInf_t.tagNum )		  
+			if( 0 == tagInf_t.tagNum )
+			{
 				userProcessMode = USER_PROCESS_ABNORMAL_MODE; 
+				Util_stopClock(&userProcessClock);	
+				Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_30s);
+				sx1278Init();
+				sx1278_SetSleep();
+				sx1278_LowPowerMgr();			
+			}
 		    else
 			{
 				userProcessMode = USER_PROCESS_NORAMAL_MODE;	
 				tagInf_t.tagNum = 0;
 			}
+		  }
+		  else if( USER_PROCESS_ABNORMAL_MODE == userProcessMode)
+		  {
+		  	if( tagInf_t.tagNum > 0)
+			{
+				sx1278_OutputLowPw();
+				userProcessMode = USER_PROCESS_NORAMAL_MODE;
+			}	  
 		  }
 		  else
 		  {
