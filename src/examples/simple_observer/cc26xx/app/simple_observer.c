@@ -531,8 +531,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	  	
 		UserProcess_LoraInf_Send(rfRxTxBuf, loraUpPktLen);
 		
-		Voltage_Check();
-		
 		if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
 		{
 		 	Util_stopClock(&userProcessClock);	 
@@ -556,7 +554,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			    UserTimeSeries.channelCheckTime = 0;
 			}
 		}
-					
+		
+		Voltage_Check();	
+		
 		if( 3 == userTxInf.device_up_inf.bit_t.acflag )
 			userTxInf.device_up_inf.bit_t.acflag = 0;
 		else

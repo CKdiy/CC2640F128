@@ -24,9 +24,10 @@ static void usDelay(volatile uint16_t delay);
  */
 uint8_t adc_OneShot_Read(void)
 {
-    uint32_t turnedOnClocks = 0;
+	uint32_t turnedOnClocks = 0;
 	uint32_t adcValue = 0;
-	uint16_t res;
+	float res=0.00;
+	float vbat = 0.00;
 	
     /* Config clock */
     /* Only turn on clocks that are not already enabled. Not thread-safe, obviously. */
@@ -52,11 +53,13 @@ uint8_t adc_OneShot_Read(void)
 	
 	AUXWUCClockDisable(turnedOnClocks);
 	
-	res = (adcValue/4095)*43;
+	res = (float)adcValue;
+	  
+	vbat =(res/4095)*43;
 	
-	if((res <= 360) && (res > 330))
+	if((vbat <= 370) && (vbat > 360))
 	  return 0;
-	else if(res <= 330)
+	else if(vbat <= 360)
 	  return 0xF0;
 		
     return 1;
