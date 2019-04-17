@@ -66,7 +66,7 @@ void sx1278DelayMs(void)
 {
 	uint16_t i,j;
 	
-	for(i=0;i<200;i++)
+	for(i=0;i<300;i++)
 	{
 		for(j=0;j<300;j++);
 	}
@@ -267,6 +267,10 @@ void sx1278_SendBuf(uint8_t *pkt, uint8_t pkt_size)
   
 	if( NULL == pkt )
 	  return;
+	
+	sx1278_SetOpMode( RFLR_OPMODE_STANDBY );
+	
+	sx1278DelayMs();
 	
 	if( SX1278.LoRa.IqInverted == TRUE )
 	{
