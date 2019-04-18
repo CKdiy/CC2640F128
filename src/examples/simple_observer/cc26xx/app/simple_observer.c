@@ -1222,7 +1222,7 @@ static void SimpleBLEObserver_sleepModelTask(void)
     	rcoscTimeTick ++;   
 	}	
 	
-	SimpleBLEObserver_loraStatusTask(DEFAULT_RFRXTIMOUT_TIME-1, DEFAULT_RFTXTIMOUT_TIME-1);
+	SimpleBLEObserver_loraStatusTask(DEFAULT_RFRXTIMOUT_TIME, DEFAULT_RFTXTIMOUT_TIME);
 	
 	if(userProcessMgr.memsActiveFlg == TRUE)
 	{
