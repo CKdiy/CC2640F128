@@ -824,10 +824,13 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 			sx1278_ReadRxPkt();
 			if(UserProcess_LoraInf_Get())
 			{
-			  	sx1278_SetStby();
+				sx1278_SetStby();
 				Task_sleep(5*1000/Clock_tickPeriod);
 				sx1278_SetSleep();
 				sx1278_LowPowerMgr();
+				Board_LedCtrl(Board_LED_ON);
+				Task_sleep(50*1000/Clock_tickPeriod);
+				Board_LedCtrl(Board_LED_OFF);
 				userProcessMgr.rfrxtimeout = 0;
 			}	
 		}	  
@@ -1307,10 +1310,7 @@ static bool UserProcess_LoraInf_Get(void)
 	}
 	
 	if(res)
-	{
-		Board_LedCtrl(Board_LED_ON);
-		Task_sleep(50*1000/Clock_tickPeriod);
-		Board_LedCtrl(Board_LED_OFF);		
+	{		
 		return TRUE;
 	}
 	

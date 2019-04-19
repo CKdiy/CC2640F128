@@ -66,9 +66,9 @@ void sx1278DelayMs(void)
 {
 	uint16_t i,j;
 	
-	for(i=0;i<300;i++)
+	for(i=0;i<30;i++)
 	{
-		for(j=0;j<300;j++);
+		for(j=0;j<30;j++);
 	}
 }
 
