@@ -215,6 +215,7 @@ static tagInfStruct devInfList[DEFAULT_MAX_SCAN_RES];
 static observerInfStruct tagInf_t;
 static tagInfStruct userTxList[16];
 static uint8_t rfRxTxBuf[DEFAULT_RFTRANSMIT_LEN];
+//const uint8_t weiXinUuid[6]={0x20,0x19,0x01,0x10,0x09,0x31};
 const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 LoRaSettings_t *userLoraPara = NULL;
 extern SX1276_t  SX1278;
@@ -592,7 +593,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		 	{
 				if( sx1278Init() )
 				{
-					sx1278_SetLoraPara(userLoraPara);
+					sx1278_SetLoraPara(NULL);
 					sx1278_SetSleep();
 					sx1278_LowPowerMgr();
 				}
@@ -1330,7 +1331,7 @@ static void UserProcess_GetLoraUp_Pkt(void)
 	bleinf_len = 0;
 	
 	userTxInf.loratag_pkt_hdr.pre = LORATAG_INFTX_FIX;
-	 
+
 	bleinf_len  =(userTxInf.device_up_inf.bit_t.beaconNum_1 + userTxInf.device_up_inf.bit_t.beaconNum_2 +
 				   userTxInf.device_up_inf.bit_t.beaconNum_3 + userTxInf.device_up_inf.bit_t.beaconNum_4) * sizeof(tagInfStruct); 
 	
@@ -1377,13 +1378,20 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 	if( SX1278.State == RF_IDLE )	 		
 		sx1278_OutputLowPw();
 			
-	if( sx1278IsChannelFree( SX1278.Modem, SX1278.LoRa.Channel, -100) ) 
+	if( sx1278IsChannelFree( SX1278.Modem, SX1278.LoRa.Channel, -80) ) 
 	{
 	  	sx1278_StatusPin_Disable();
 		sx1278_SendBuf(buf, len);
 		sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+		if(UserTimeSeries.channelCheckTime != 0)
+		{
+			Util_stopClock(&loraUpClock);	
+			Util_restartClock(&loraUpClock,  UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD);	
+			Util_stopClock(&userProcessClock);	
+			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD);	
+			UserTimeSeries.channelCheckTime  = 0;
+		}
 		scanTagNum = 0;
-		UserTimeSeries.channelCheckTime = 0;
 	}
 	else
 	{
