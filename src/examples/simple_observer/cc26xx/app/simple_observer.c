@@ -221,6 +221,8 @@ LoRaSettings_t *userLoraPara = NULL;
 extern SX1276_t  SX1278;
 snv_driverfailure_t snv_DriverFailure;
 const uint32_t default_loraChannel[2]={499300000,496330000};
+
+const char version[] = "V0.02";
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
