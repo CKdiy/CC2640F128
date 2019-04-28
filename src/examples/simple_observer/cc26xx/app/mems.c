@@ -80,7 +80,7 @@ bool MemsOpen(void)
 	Mems_WriteReg(0x11, transBuf);
 	
 	//ODR=125HZ
-	transBuf = 0x07;
+	transBuf = 0x01;
 	Mems_WriteReg(0x10, transBuf);	
 	
 	//Set active_ths default:g_Rang +/-2g 
@@ -89,7 +89,7 @@ bool MemsOpen(void)
 	//K = 7.81(4g range)
 	//K = 15.625(8g range)
 	//K = 31.25(16g range)
-	transBuf = 50;
+	transBuf = 100;
 	Mems_WriteReg(0x28, transBuf);
 	
 	//Enable active interrupt

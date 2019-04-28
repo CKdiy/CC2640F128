@@ -125,7 +125,7 @@
 
 //User Send Interval Time
 #define DEFAULT_USER_TX_INTERVAL_TIME         4
-#define DEFAULT_USER_MEMS_ACTIVE_TIME         3 
+#define DEFAULT_USER_MEMS_ACTIVE_TIME         2 
 #define DEFAULT_USER_MEMS_NOACTIVE_TIME       2  
 // 1000 ms
 #define RCOSC_CALIBRATION_PERIOD_400ms        400
