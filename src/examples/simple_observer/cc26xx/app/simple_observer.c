@@ -221,6 +221,8 @@ LoRaSettings_t *userLoraPara = NULL;
 extern SX1276_t  SX1278;
 snv_driverfailure_t snv_DriverFailure;
 const uint32_t default_loraChannel[2]={499300000,496330000};
+static uint32_t loraup_clockTimeout;
+static uint32_t userProcess_clockTimeout;
 
 const char version[] = "V0.02";
 /*********************************************************************
@@ -421,7 +423,7 @@ void SimpleBLEObserver_init(void)
   //BLE的扫描次数不得大于发送间隔
   if( UserTimeSeries.txinterval < UserTimeSeries.scanTimes)
     UserTimeSeries.scanTimes = UserTimeSeries.txinterval;
-	
+
   rcoscTimeTick = 0;
   scanTagNum = 0;
   bleScanTimeTick = 0;
@@ -456,13 +458,15 @@ void SimpleBLEObserver_init(void)
   /* Base timer */
   if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
   {
+      userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_400ms;
       Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
-                          RCOSC_CALIBRATION_PERIOD_400ms, 0, false, SBP_PERIODIC_EVT);  
+                          userProcess_clockTimeout, 0, false, SBP_PERIODIC_EVT);  
   }
   else
   {
+      userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD;
       Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
-                          RCOSC_CALIBRATION_PERIOD, 0, false, SBP_PERIODIC_EVT); 
+                          userProcess_clockTimeout, 0, false, SBP_PERIODIC_EVT); 
   }
   
   Util_startClock(&userProcessClock);
@@ -536,9 +540,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		
 		if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
 		{
-		 	Util_stopClock(&userProcessClock);	 
-			Util_stopClock(&loraUpClock);	
-			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_400ms);
+		 	Util_stopClock(&loraUpClock);	
+			userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_400ms;
+			Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 		}
 	}
 	else if(events & SBP_LORAUP_EVT)
@@ -624,15 +628,15 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, UserTimeSeries.timeForscanning);
 				
 				/* Lora Up Timer */
+				loraup_clockTimeout = UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD;
 				Util_constructClock(&loraUpClock, SimpleBLEObserver_userClockHandler,
-                                            UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD, 0, false, SBP_LORAUP_EVT);		
+                                            loraup_clockTimeout, 0, false, SBP_LORAUP_EVT);		
 				
 				/* Lora Up Delay Timer */
 				Util_constructClock(&loraUpDelayClock, SimpleBLEObserver_userClockHandler,
                                             RCOSC_CALIBRATION_PERIOD, 0, false, SBP_LORAUPDELAY_EVT);	
 				
-				Util_stopClock(&userProcessClock);	
-				Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD);
+				Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 				/* Start Timer */
 				Util_startClock(&loraUpClock);
 				userProcessMode = USER_PROCESS_ACTIVE_MODE;
@@ -743,10 +747,11 @@ void ActiveToSleep_Ready(void)
 	userProcessMgr.memsActiveFlg = FALSE;
 	userProcessMgr.memsActiveCounter = 0;
 	userProcessMgr.memsNoActiveCounter = 0;
-	Util_stopClock(&loraUpClock);	
-	Util_stopClock(&userProcessClock);	
-	Util_restartClock(&loraUpClock, UserTimeSeries.txinterval_S*RCOSC_CALIBRATION_PERIOD);
-	Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_3s);	
+	
+	loraup_clockTimeout = UserTimeSeries.txinterval_S*RCOSC_CALIBRATION_PERIOD;
+	userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_3s;
+	Util_restartClock(&loraUpClock, loraup_clockTimeout);
+	Util_restartClock(&userProcessClock, userProcess_clockTimeout);	
 	userProcessMode = USER_PROCESS_SLEEP_MODE;
 }
 
@@ -754,10 +759,10 @@ void SleepToActive_Ready(void)
 {
 	userProcessMgr.wakeUpSourse = WAKEUP_SOURSE_RTC; 
 	userProcessMgr.memsActiveCounter = 0;
-	Util_stopClock(&userProcessClock);	
-	Util_stopClock(&loraUpClock);	
-	Util_restartClock(&loraUpClock, UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD);
-	Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD);
+	loraup_clockTimeout = UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD;
+	userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD;
+	Util_restartClock(&loraUpClock, loraup_clockTimeout);
+	Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 	userProcessMode = USER_PROCESS_ACTIVE_MODE;	
 }
 
@@ -926,8 +931,8 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 			if( 0 == tagInf_t.tagNum )
 			{
 				userProcessMode = USER_PROCESS_ABNORMAL_MODE; 
-				Util_stopClock(&userProcessClock);	
-				Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD_30s);
+                userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_30s;
+				Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 				sx1278Init();
 				sx1278_SetSleep();
 				sx1278_LowPowerMgr();			
@@ -1214,9 +1219,12 @@ static void SimpleBLEObserver_performPeriodicTask(void)
 static void SimpleBLEObserver_sleepModelTask(void)
 {
   	uint8 res = 0; 
+	uint16 sleep_s;
+	  
+	sleep_s = loraup_clockTimeout/userProcess_clockTimeout;	  
 	
 	bleScanTimeTick ++;
-	if( bleScanTimeTick == UserTimeSeries.txinterval_S/3 - 1)
+	if( bleScanTimeTick >= sleep_s - 1)
 	{
 		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                         DEFAULT_DISCOVERY_ACTIVE_SCAN,
@@ -1387,10 +1395,8 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 		sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
 		if(UserTimeSeries.channelCheckTime != 0)
 		{
-			Util_stopClock(&loraUpClock);	
-			Util_restartClock(&loraUpClock,  UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD);	
-			Util_stopClock(&userProcessClock);	
-			Util_restartClock(&userProcessClock, RCOSC_CALIBRATION_PERIOD);	
+			Util_restartClock(&loraUpClock,  loraup_clockTimeout);	
+			Util_restartClock(&userProcessClock, userProcess_clockTimeout);	
 			UserTimeSeries.channelCheckTime  = 0;
 		}
 		scanTagNum = 0;
