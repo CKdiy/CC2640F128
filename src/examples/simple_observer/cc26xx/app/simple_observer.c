@@ -1099,11 +1099,13 @@ static void SimpleBLEObserver_addDeviceInfo_Ex(uint8 *pAddr, uint8 *pData, uint8
 void SimpleBLEObserver_keyChangeHandler(uint8 keys)
 {
   SimpleBLEObserver_enqueueMsg(SBO_KEY_CHANGE_EVT, keys, NULL);
+  Semaphore_post(sem);
 }
 
 void SimpleBLEObserver_memsActiveHandler(uint8 pins)
 {
   SimpleBLEObserver_enqueueMsg(SBO_MEMS_ACTIVE_EVT, pins, NULL);
+  Semaphore_post(sem);
 }
 
 void SimpleBLEObserver_loraStatusHandler(uint8 pins)

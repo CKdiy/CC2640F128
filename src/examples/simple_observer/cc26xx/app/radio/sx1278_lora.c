@@ -25,7 +25,9 @@
 #define REGVERSION_DEFAULT         0x12 
 #define RF_DEFAULT_RXPACKET_LEN    1<<4
 
-uint8_t LoraRxBuffer[RF_DEFAULT_RXPACKET_LEN];     
+#define LORACHECK_TIME              8
+
+uint8_t LoraRxBuffer[RF_DEFAULT_RXPACKET_LEN]; 
 
 // Default settings
 const LoRaSettings_t LoRaSettings =
@@ -463,15 +465,16 @@ void sx1278_SetRFChannel( uint32_t freq )
 uint8_t sx1278IsChannelFree( RadioModems_t modem, uint32_t freq, int16_t rssiThresh )
 {
     int16_t rssi = 0;
-    uint8_t i,j;
+    uint8_t i;
+    uint16_t j;
 	  
     sx1278_SetModem( modem );
     sx1278_SetRFChannel( freq );
     sx1278_SetOpMode( RF_OPMODE_RECEIVER );
 	
-    for( i=0; i<10; i++ )
+    for( i=0; i<LORACHECK_TIME; i++ )
     {
-		for( j=0; j<10; j++ )
+		for( j=0; j<40; j++ )
         	sx1278DelayMs();
 		
     	rssi = sx1278_ReadRssi( modem );
@@ -483,8 +486,7 @@ uint8_t sx1278IsChannelFree( RadioModems_t modem, uint32_t freq, int16_t rssiThr
 	    
     sx1278_SetOpMode( RFLR_OPMODE_SLEEP );
 	
-	
-    if( i < 10 )
+    if( i < LORACHECK_TIME )
     {
         return FALSE;
     }
