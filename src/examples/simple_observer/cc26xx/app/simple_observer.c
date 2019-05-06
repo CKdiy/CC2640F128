@@ -140,7 +140,8 @@
 #define DEFAULT_SINGLESTORMAX_NUM              4   
 #define DEFAULT_UPBLEINFMAX_NUM                16   
 #define DEFAULT_PERDRVFAILMAX_TIME             4 
-#define DEFAULT_CHANNELCHECK_TIME              4    
+#define DEFAULT_CHANNELCHECK_TIME              4   
+#define DEFAULT_NOACKTIME_TICK                 2     
 /*********************************************************************
  * TYPEDEFS
  */
@@ -268,6 +269,7 @@ void TagPara_Get(void);
 void Voltage_Check(void);
 void SleepToActive_Ready(void);
 void ActiveToSleep_Ready(void);
+static void UserProcess_LoraChannel_Change( void );
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -840,6 +842,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 				Task_sleep(50*1000/Clock_tickPeriod);
 				Board_LedCtrl(Board_LED_OFF);
 				userProcessMgr.rfrxtimeout = 0;
+				userProcessMgr.noacktimetick = 0;
 			}	
 		}	  
 	  }
@@ -1170,9 +1173,17 @@ static void SimpleBLEObserver_loraStatusTask(uint8_t rxtimeout, uint8_t txtimeou
 		/* 接收超时，强制进入Sleep模式 */
 		if( userProcessMgr.rfrxtimeout >= rxtimeout)
 		{
+			userProcessMgr.noacktimetick ++;
 			sx1278_SetStby();
 			Task_sleep(5*1000/Clock_tickPeriod);
 			sx1278_SetSleep();
+			
+			if( userProcessMgr.noacktimetick > DEFAULT_NOACKTIME_TICK )
+			{
+				UserProcess_LoraChannel_Change();
+				userProcessMgr.noacktimetick = 0;
+			}
+			
 			sx1278_LowPowerMgr();
 			userProcessMgr.rfrxtimeout = 0;
 		}
@@ -1405,16 +1416,11 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 	}
 	else
 	{
-	  	UserTimeSeries.channelCheckTime ++;
+		UserTimeSeries.channelCheckTime ++;
 		if( (UserTimeSeries.channelCheckTime == (DEFAULT_CHANNELCHECK_TIME + 1) )
 		    || (UserTimeSeries.channelCheckTime == (DEFAULT_CHANNELCHECK_TIME*2 + 1)) ) //准备调频检测
 		{
-		  	if( SX1278.LoRa.Channel == default_loraChannel[0] )
-				SX1278.LoRa.Channel =default_loraChannel[1];
-			else
-			    SX1278.LoRa.Channel = default_loraChannel[0];
-			
-			sx1278_SetRFChannel(SX1278.LoRa.Channel);		  
+	  		UserProcess_LoraChannel_Change();
 		}
 		sx1278_LowPowerMgr();
 				
@@ -1426,6 +1432,16 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 		if( i < DEFAULT_CHANNELCHECK_TIME + 1 )
 			Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*i);
 	}
+}
+
+static void UserProcess_LoraChannel_Change( void )
+{
+	if( SX1278.LoRa.Channel == default_loraChannel[0] )
+		SX1278.LoRa.Channel =default_loraChannel[1];
+	else
+		SX1278.LoRa.Channel = default_loraChannel[0];
+			
+	sx1278_SetRFChannel(SX1278.LoRa.Channel);	
 }
 
 void Voltage_Check(void)

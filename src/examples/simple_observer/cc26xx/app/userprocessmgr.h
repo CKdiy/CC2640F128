@@ -64,6 +64,7 @@ typedef struct
 	uint8 rftxtimeout;
 	uint8 rfrxtimeout;
 	uint8 sosstatustick;
+	uint8 noacktimetick;
 }UserProcessMgr_t;
 
 typedef struct 
