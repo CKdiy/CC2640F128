@@ -270,6 +270,7 @@ void Voltage_Check(void);
 void SleepToActive_Ready(void);
 void ActiveToSleep_Ready(void);
 static void UserProcess_LoraChannel_Change( void );
+static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -485,7 +486,7 @@ void SimpleBLEObserver_init(void)
  */
 static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 {
-  uint8 res; 
+  uint8_t res;
   // Initialize application
   SimpleBLEObserver_init();
 
@@ -583,11 +584,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		if(userProcessMgr.memsActiveFlg == TRUE)
 		{
 			userProcessMgr.memsActiveFlg = FALSE;
-			res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-			if(!res)
-			{
-				HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
-			}						
+			UserProcess_MemsInterrupt_Mgr(ENABLE);						
 		}
 	}
 	
@@ -624,7 +621,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				
 				MemsLowPwMgr();
 				
-				Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+				UserProcess_MemsInterrupt_Mgr(ENABLE);
 	
 				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, UserTimeSeries.timeForscanning);
 				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, UserTimeSeries.timeForscanning);
@@ -697,15 +694,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				
 				if( userProcessMgr.wakeUpSourse & WAKEUP_SOURSE_KEY )
 				{
-				  	if(userProcessMgr.memsActiveFlg == TRUE)
-					{
-						userProcessMgr.memsActiveFlg = FALSE;
-						res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-						if(!res)
-						{
-							HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);							
-						}						
-					}
 					SleepToActive_Ready();
 				}		  		
 			}
@@ -749,6 +737,10 @@ void ActiveToSleep_Ready(void)
 	userProcessMgr.memsActiveFlg = FALSE;
 	userProcessMgr.memsActiveCounter = 0;
 	userProcessMgr.memsNoActiveCounter = 0;
+	if(userProcessMgr.memsinterrupt_status == DISABLE)
+	{
+		UserProcess_MemsInterrupt_Mgr(ENABLE);	
+	}
 	
 	loraup_clockTimeout = UserTimeSeries.txinterval_S*RCOSC_CALIBRATION_PERIOD;
 	userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_3s;
@@ -761,6 +753,12 @@ void SleepToActive_Ready(void)
 {
 	userProcessMgr.wakeUpSourse = WAKEUP_SOURSE_RTC; 
 	userProcessMgr.memsActiveCounter = 0;
+	userProcessMgr.memsActiveFlg = FALSE;
+	if(userProcessMgr.memsinterrupt_status == DISABLE)
+	{
+		UserProcess_MemsInterrupt_Mgr(ENABLE);	
+	}
+	
 	loraup_clockTimeout = UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD;
 	userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD;
 	Util_restartClock(&loraUpClock, loraup_clockTimeout);
@@ -818,7 +816,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
   	case SBO_MEMS_ACTIVE_EVT:
 	  userProcessMgr.memsActiveFlg = TRUE;
 	  userProcessMgr.wakeUpSourse |= WAKEUP_SOURSE_MEMS;
-	  Mems_ActivePin_Disable();
+	  UserProcess_MemsInterrupt_Mgr(DISABLE);
 	  break;
 	  
   	case  SBO_LORA_STATUSPIN_EVT:
@@ -1231,7 +1229,6 @@ static void SimpleBLEObserver_performPeriodicTask(void)
 
 static void SimpleBLEObserver_sleepModelTask(void)
 {
-  	uint8 res = 0; 
 	uint16 sleep_s;
 	  
 	sleep_s = loraup_clockTimeout/userProcess_clockTimeout;	  
@@ -1255,11 +1252,7 @@ static void SimpleBLEObserver_sleepModelTask(void)
 	{
 		userProcessMgr.memsActiveCounter ++;
 		userProcessMgr.memsActiveFlg = FALSE;
-		res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
-		if(!res)
-		{
-			HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);
-		}
+		UserProcess_MemsInterrupt_Mgr(ENABLE);
 						
 		if(userProcessMgr.memsActiveCounter >= DEFAULT_USER_MEMS_ACTIVE_TIME)
 		{
@@ -1442,6 +1435,29 @@ static void UserProcess_LoraChannel_Change( void )
 		SX1278.LoRa.Channel = default_loraChannel[0];
 			
 	sx1278_SetRFChannel(SX1278.LoRa.Channel);	
+}
+
+static bool UserProcess_MemsInterrupt_Mgr( uint8_t status )
+{
+    bool res = FALSE;
+	
+  	if( status == DISABLE )
+	{
+		Mems_ActivePin_Disable();
+		userProcessMgr.memsinterrupt_status = DISABLE;
+		res = TRUE;
+	}
+	else
+	{
+		res = Mems_ActivePin_Enable(SimpleBLEObserver_memsActiveHandler);
+		if(!res)
+		{
+			HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);							
+		}
+		userProcessMgr.memsinterrupt_status = ENABLE;
+	}
+	
+    return res;
 }
 
 void Voltage_Check(void)

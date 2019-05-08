@@ -29,6 +29,13 @@ typedef enum
 	Bit_RESET,
 	Bit_SET,
 }tBitAction;
+
+typedef enum
+{
+    DISABLE,
+    ENABLE,
+}STATUS;
+
 /*********************************************************************
  * CONSTANTS
  */
