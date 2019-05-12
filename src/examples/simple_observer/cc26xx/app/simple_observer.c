@@ -140,7 +140,7 @@
 #define DEFAULT_SINGLESTORMAX_NUM              4   
 #define DEFAULT_UPBLEINFMAX_NUM                16   
 #define DEFAULT_PERDRVFAILMAX_TIME             4 
-#define DEFAULT_CHANNELCHECK_TIME              4   
+#define DEFAULT_CHANNELCHECK_TIME              2   
 #define DEFAULT_NOACKTIME_TICK                 2     
 /*********************************************************************
  * TYPEDEFS
@@ -271,6 +271,7 @@ void SleepToActive_Ready(void);
 void ActiveToSleep_Ready(void);
 static void UserProcess_LoraChannel_Change( void );
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
+static uint8_t getRand(void);
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -430,7 +431,6 @@ void SimpleBLEObserver_init(void)
   rcoscTimeTick = 0;
   scanTagNum = 0;
   bleScanTimeTick = 0;
-
   // Setup Observer Profile
   {
     uint8 scanRes = DEFAULT_MAX_SCAN_RES;
@@ -558,7 +558,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		{	
 		    if( UserTimeSeries.channelCheckTime == 0 )
 				Util_restartClock(&loraUpDelayClock, 10);
-			else 
+			else if(UserTimeSeries.channelCheckTime > DEFAULT_CHANNELCHECK_TIME*2) 
 			{
 			    Util_stopClock(&loraUpDelayClock);
 			    UserTimeSeries.channelCheckTime = 0;
@@ -1281,6 +1281,7 @@ static bool UserProcess_LoraInf_Get(void)
 	if(ptr == NULL)
 		return FALSE;
 	
+	crc = 0;
 	fix = LORATAG_INFRX_FIX;
 	while(i < size)
 	{
@@ -1416,13 +1417,10 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 	  		UserProcess_LoraChannel_Change();
 		}
 		sx1278_LowPowerMgr();
-				
-		if( UserTimeSeries.channelCheckTime > DEFAULT_CHANNELCHECK_TIME)
-			i = UserTimeSeries.channelCheckTime - DEFAULT_CHANNELCHECK_TIME;
-		else 
-		    i = UserTimeSeries.channelCheckTime;
+	
+		i = getRand();
 		
-		if( i < DEFAULT_CHANNELCHECK_TIME + 1 )
+		if(UserTimeSeries.channelCheckTime < DEFAULT_CHANNELCHECK_TIME*2 + 1)
 			Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*i);
 	}
 }
@@ -1667,6 +1665,24 @@ static void getMacAddress(uint8_t *mac_address)
 	*mac_address++ = BREAK_UINT32(mac0, 2);  
 	*mac_address++ = BREAK_UINT32(mac0, 1);  
 	*mac_address++ = BREAK_UINT32(mac0, 0);  
+}
+
+static uint8_t getRand(void)
+{
+    int res;
+	uint8_t seed;
+	uint32_t s_rand;
+	
+	s_rand = Clock_getTicks();
+	srand(s_rand);
+	res = rand() + 1;	
+	s_rand = ((res << 8) | (res >> 8)) >> 16;
+	seed =  s_rand%0x15;
+	
+	if(seed == 0)
+	  seed = 1;
+	
+    return seed;
 }
 /*********************************************************************
 *********************************************************************/
