@@ -87,7 +87,7 @@ static int DevInf_Snv_Init(uint8_t len)
 	/* LORA Para */
 	ptr->loraPara_u.bit_t.power			= 1;
 	ptr->loraPara_u.bit_t.rate  		= 1;
-	ptr->loraPara_u.bit_t.channel	 	= 1;
+	ptr->loraPara_u.bit_t.channel	 	= 0;
 	
 	/* TAG Para */
 	ptr->tagPara_u.bit_t.sos            = 0;

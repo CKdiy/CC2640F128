@@ -142,6 +142,9 @@
 #define DEFAULT_PERDRVFAILMAX_TIME             4 
 #define DEFAULT_CHANNELCHECK_TIME              2   
 #define DEFAULT_NOACKTIME_TICK                 2     
+
+#define DEFAULT_LORA_BASEBAND                           470300000 
+#define DEFAULT_LORACHANNEL_INCREMENTAL_CHANGE          200000 
 /*********************************************************************
  * TYPEDEFS
  */
@@ -221,11 +224,29 @@ const uint8_t weiXinUuid[6]={0xFD,0xA5,0x06,0x93,0xA4,0xE2};
 LoRaSettings_t *userLoraPara = NULL;
 extern SX1276_t  SX1278;
 snv_driverfailure_t snv_DriverFailure;
-const uint32_t default_loraChannel[2]={499300000,496330000};
+static uint8_t loraChannel_ID;
 static uint32_t loraup_clockTimeout;
 static uint32_t userProcess_clockTimeout;
 
 const char version[] = "V0.02";
+
+/********************* Lora Channel Table ************************/
+const uint32_t lora_channel_Table1[] = 
+{
+470100000, 470500000, 470900000, 471100000, 471500000, 471900000,
+472100000, 472500000, 472900000, 473100000, 473500000, 473900000,
+474100000, 474500000, 474900000, 475100000, 475500000, 475900000,
+476100000, 476500000, 476900000, 477100000, 477500000, 477900000	
+};
+
+const uint32_t lora_channel_Table2[] = 
+{
+510100000, 510500000, 510900000, 511100000, 511500000, 511900000,
+512100000, 512500000, 512900000, 513100000, 513500000, 513900000,
+514100000, 514500000, 514900000, 515100000, 515500000, 515900000,
+516100000, 516500000, 516900000, 517100000, 517500000, 517900000
+};
+
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
@@ -598,7 +619,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		 	{
 				if( sx1278Init() )
 				{
-					sx1278_SetLoraPara(NULL);
+					sx1278_SetLoraPara(userLoraPara);
 					sx1278_SetSleep();
 					sx1278_LowPowerMgr();
 				}
@@ -1395,7 +1416,7 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 	if( SX1278.State == RF_IDLE )	 		
 		sx1278_OutputLowPw();
 			
-	if( sx1278IsChannelFree( SX1278.Modem, SX1278.LoRa.Channel, -80) ) 
+	if( sx1278IsChannelFree( SX1278.Modem, SX1278.LoRa.Channel, -75) ) 
 	{
 	  	sx1278_StatusPin_Disable();
 		sx1278_SendBuf(buf, len);
@@ -1427,10 +1448,10 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 
 static void UserProcess_LoraChannel_Change( void )
 {
-	if( SX1278.LoRa.Channel == default_loraChannel[0] )
-		SX1278.LoRa.Channel =default_loraChannel[1];
+	if( SX1278.LoRa.Channel ==  lora_channel_Table1[loraChannel_ID])
+		SX1278.LoRa.Channel = lora_channel_Table2[loraChannel_ID];
 	else
-		SX1278.LoRa.Channel = default_loraChannel[0];
+		SX1278.LoRa.Channel = lora_channel_Table1[loraChannel_ID];
 			
 	sx1278_SetRFChannel(SX1278.LoRa.Channel);	
 }
@@ -1491,20 +1512,41 @@ void TagPara_Get(void)
 			{
 				userLoraPara->Power = 20;
 			}
+			else
+			{
+				userLoraPara->Power = 18;    
+			}
 			
 			if( ptr->loraPara_u.bit_t.rate == 1)
 			{
 				userLoraPara->Coderate = 2;
 			}
-			
-			if( ptr->loraPara_u.bit_t.channel == 1)
+			else
 			{
-				userLoraPara->Channel = 470000000;
+				userLoraPara->Coderate = 2;
+			}
+			
+			if( ptr->loraPara_u.bit_t.channel < 24)
+			{
+				loraChannel_ID = ptr->loraPara_u.bit_t.channel;
+				if(userTxInf.devId[1]%2 == 0)
+				{
+					userLoraPara->Channel = lora_channel_Table1[loraChannel_ID];
+				}
+				else
+				{
+					userLoraPara->Channel = lora_channel_Table2[loraChannel_ID];;
+				}
+			}
+			else
+			{
+				loraChannel_ID = 0;
+				userLoraPara->Channel = DEFAULT_LORA_BASEBAND;		
 			}
 			
 			/* Test Para */
 			userLoraPara->Bandwidth             = 7;
-			userLoraPara->Sf                    = 9;
+			userLoraPara->Sf                    = 7;
 			userLoraPara->PreambleLen           = 8;
 			userLoraPara->LowDatarateOptimize   = FALSE;
 			userLoraPara->FixLen                = 0;
