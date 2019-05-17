@@ -134,8 +134,8 @@
 #define RCOSC_CALIBRATION_PERIOD_30s          30000
 #define RCOSC_CALIBRATION_PERIOD_160ms        160  
 #define DEFAULT_RFTRANSMIT_LEN                55
-#define DEFAULT_RFRXTIMOUT_TIME                1
-#define DEFAULT_RFTXTIMOUT_TIME                1
+#define DEFAULT_RFRXTIMOUT_TIME                2
+#define DEFAULT_RFTXTIMOUT_TIME                2
 #define DEFAULT_SOSTICK_NUM                    12 
 #define DEFAULT_SINGLESTORMAX_NUM              4   
 #define DEFAULT_UPBLEINFMAX_NUM                16   
