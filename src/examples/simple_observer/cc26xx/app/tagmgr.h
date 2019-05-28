@@ -142,7 +142,7 @@ typedef struct
 typedef struct
 {   
 	loratag_pkt_hdr_t  loratag_pkt_hdr;
-	uint8_t  devId[2];          //设备地址 
+	uint8_t  devId[6];          //设备地址 
 	device_up_inf_n    device_up_inf;
 	tagInfStruct *tagInfBuf_t;  // 单次上传的Tag信息
 }userTxStruct;

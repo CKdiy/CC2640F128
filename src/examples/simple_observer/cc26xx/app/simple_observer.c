@@ -133,7 +133,7 @@
 #define RCOSC_CALIBRATION_PERIOD_3s           3000
 #define RCOSC_CALIBRATION_PERIOD_30s          30000
 #define RCOSC_CALIBRATION_PERIOD_160ms        160  
-#define DEFAULT_RFTRANSMIT_LEN                55
+#define DEFAULT_RFTRANSMIT_LEN                59
 #define DEFAULT_RFRXTIMOUT_TIME                2
 #define DEFAULT_RFTXTIMOUT_TIME                2
 #define DEFAULT_SOSTICK_NUM                    12 
@@ -398,7 +398,6 @@ void SimpleBLEObserver_createTask(void)
  */
 void SimpleBLEObserver_init(void)
 {  
-	uint16_t crc;  
 	// ******************************************************************
   // N0 STACK API CALLS CAN OCCUR BEFORE THIS CALL TO ICall_registerApp
   // ******************************************************************
@@ -417,9 +416,7 @@ void SimpleBLEObserver_init(void)
   
   //获取当前设备的Mac地址，作为设备唯一识别ID
   getMacAddress(rfRxTxBuf);
-  crc = crc16(0, rfRxTxBuf, B_ADDR_LEN);
-  userTxInf.devId[0] = ( crc >> 8 ) & 0xFF;
-  userTxInf.devId[1] = crc & 0xFF;
+  memcpy(&userTxInf.devId[0], rfRxTxBuf, 6);
   
   Nvram_Init();
   
@@ -1329,7 +1326,7 @@ static bool UserProcess_LoraInf_Get(void)
 	
 	res = 0;
 	
-	if( memcmp(rfRxTxBuf, &userTxInf.devId[0], sizeof(uint16_t)) != 0 )
+	if( memcmp(rfRxTxBuf, &userTxInf.devId[0], 6) != 0 )
 		return FALSE;
 	
 	switch(payload_inf.bit_t.pkt_type)
@@ -1374,7 +1371,7 @@ static void UserProcess_GetLoraUp_Pkt(void)
 				   userTxInf.device_up_inf.bit_t.beaconNum_3 + userTxInf.device_up_inf.bit_t.beaconNum_4) * sizeof(tagInfStruct); 
 	
 	userTxInf.loratag_pkt_hdr.payload_inf.bit_t.pkt_type = TYPE_LORATAGUP;
-	userTxInf.loratag_pkt_hdr.payload_inf.bit_t.pkt_len  = bleinf_len + sizeof(uint16_t) + sizeof(uint16_t);
+	userTxInf.loratag_pkt_hdr.payload_inf.bit_t.pkt_len  = bleinf_len + 6 + sizeof(uint16_t);   //mac addr + taginf + bleinf
     
 	res |= userTxInf.device_up_inf.bit_t.vbat << 15; 
 	if( userProcessMgr.sosstatustick != 0)
@@ -1387,10 +1384,10 @@ static void UserProcess_GetLoraUp_Pkt(void)
 	res |=  userTxInf.device_up_inf.bit_t.beaconNum_3 << 6;
 	res |=  userTxInf.device_up_inf.bit_t.beaconNum_4 << 9;
 	res = ntohs(res);
-	memcpy(ptr, &userTxInf.loratag_pkt_hdr.pre, 4); //sizeof(loratag_pkt_hdr_t) + ID 
+	memcpy(ptr, &userTxInf.loratag_pkt_hdr.pre, 8); //sizeof(loratag_pkt_hdr_t) + ID 
 
 	ptr ++;
-	for(i =0; i<3; i++)
+	for(i =0; i<7; i++)
 		crc += *ptr++; 
 	
 	memcpy(ptr, &res, sizeof(res));
