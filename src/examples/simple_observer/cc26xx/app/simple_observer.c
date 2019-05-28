@@ -973,7 +973,9 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 		  else
 		  {
 			  if( 0 == tagInf_t.tagNum )
-				return;
+			  {
+			    HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);				
+			  }
 			  
 			  //根据Rssi大小排序
 			  for(i=0; i<tagInf_t.tagNum - 1; i++)
