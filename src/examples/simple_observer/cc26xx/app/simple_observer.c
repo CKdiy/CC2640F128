@@ -432,7 +432,7 @@ void SimpleBLEObserver_init(void)
   userProcessMgr.rftxtimeout = 0;
   userProcessMgr.rfrxtimeout = 0;
   
-  Voltage_Check();
+//Voltage_Check();
   TagPara_Get();
 
   if( (UserTimeSeries.txinterval == 0) || (UserTimeSeries.txinterval == 0xFFFF) )
