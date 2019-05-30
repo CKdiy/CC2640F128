@@ -228,7 +228,7 @@ static uint8_t loraChannel_ID;
 static uint32_t loraup_clockTimeout;
 static uint32_t userProcess_clockTimeout;
 
-const char version[] = "V0.02";
+const char version[] = "V0.03";
 
 /********************* Lora Channel Table ************************/
 const uint32_t lora_channel_Table1[] = 
