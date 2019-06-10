@@ -1322,6 +1322,12 @@
             </file>
         </group>
         <group>
+            <name>UART</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\hal_uart.c</name>
+            </file>
+        </group>
+        <group>
             <name>UDMA</name>
             <file>
                 <name>$TI_RTOS_DRIVERS_BASE$\ti\drivers\dma\UDMACC26XX.c</name>

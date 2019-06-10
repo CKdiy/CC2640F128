@@ -84,6 +84,11 @@
 #include "snv.h"
 #include "auxadc.h"
 #include "crc.h"
+
+#ifndef DEMO
+#include "hal_uart.h"
+#include <ti/drivers/UART.h>
+#endif
 /*********************************************************************
  * MACROS
  */
@@ -145,6 +150,11 @@
 
 #define DEFAULT_LORA_BASEBAND                           470300000 
 #define DEFAULT_LORACHANNEL_INCREMENTAL_CHANGE          200000 
+		
+#define DEFAULT_UART_AT_TEST_LEN              4
+#define DEFAULT_UART_AT_MAC_LEN               8   
+#define DEFAULT_UART_AT_CMD_LEN               10
+#define DEFAULT_UART_AT_RSP_LEN               6
 /*********************************************************************
  * TYPEDEFS
  */
@@ -228,6 +238,10 @@ static uint8_t loraChannel_ID;
 static uint32_t loraup_clockTimeout;
 static uint32_t userProcess_clockTimeout;
 
+#ifndef DEMO
+extern volatile uint8_t rx_buff_header,rx_buff_tailor;
+static uint8_t rxbuff[RX_BUFF_SIZE];
+#endif
 const char version[] = "V0.03";
 
 /********************* Lora Channel Table ************************/
@@ -293,6 +307,12 @@ void ActiveToSleep_Ready(void);
 static void UserProcess_LoraChannel_Change( void );
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
 static uint8_t getRand(void);
+
+#ifndef DEMO
+void uart0BoardReciveCallback(UART_Handle handle, void *buf, size_t count);
+static void SimpleBLEPeripheral_uart0Task(void);
+uint8_t str_Compara( uint8_t *ptr1, uint8_t *ptr2, uint8_t len);
+#endif
 /*********************************************************************
  * PROFILE CALLBACKS
  */
@@ -408,8 +428,6 @@ void SimpleBLEObserver_init(void)
   // Create an RTOS queue for message from profile to be sent to app.
   appMsgQueue = Util_constructQueue(&appMsg);
   
-  Board_initKeys(SimpleBLEObserver_keyChangeHandler);
-  
 #ifdef IWDG_ENABLE
   wdtInitFxn();
 #endif
@@ -434,6 +452,21 @@ void SimpleBLEObserver_init(void)
   
 //Voltage_Check();
   TagPara_Get();
+  
+#ifdef DEMO
+  Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+  Power_releaseConstraint(PowerCC26XX_SB_DISALLOW);
+  Power_releaseConstraint(PowerCC26XX_IDLE_PD_DISALLOW);  
+#else
+  if( userProcessMgr.atflag != (0xFF - 1))   
+      	Open_uart0( uart0BoardReciveCallback );
+  else
+  {
+	Board_initKeys(SimpleBLEObserver_keyChangeHandler);
+    Power_releaseConstraint(PowerCC26XX_SB_DISALLOW);
+    Power_releaseConstraint(PowerCC26XX_IDLE_PD_DISALLOW);     
+  }
+#endif 
 
   if( (UserTimeSeries.txinterval == 0) || (UserTimeSeries.txinterval == 0xFFFF) )
     UserTimeSeries.txinterval = DEFAULT_USER_TX_INTERVAL_TIME; //4s
@@ -552,6 +585,11 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
         ICall_free(pMsg);
       }
     }
+	
+#ifndef DEMO
+    if( userProcessMgr.atflag  != (0xFF - 1) )
+	    SimpleBLEPeripheral_uart0Task();
+#endif
 	
 	if (events & SBP_LORAUPDELAY_EVT)
 	{	
@@ -1501,7 +1539,7 @@ void TagPara_Get(void)
 	
 	if( Ble_ReadNv_Inf( BLE_NVID_DEVINF_START, (uint8_t *)ptr) == 0 )
 	{
-	  	crc = crc32(0, &buf[ sizeof(crc) ], sizeof(lora_para_n) + sizeof(tag_para_n) + sizeof(ble_para_n));
+	  	crc = crc32(0, &buf[ sizeof(crc) ], sizeof(lora_para_n) + sizeof(tag_para_n) + sizeof(ble_para_n) + sizeof(uint8_t));
 		if( crc == ptr->crc32)
 		{
 			userLoraPara = (LoRaSettings_t *)rfRxTxBuf;
@@ -1648,6 +1686,8 @@ void TagPara_Get(void)
 		}
 		else
 			userLoraPara = NULL;  
+		
+		userProcessMgr.atflag = ptr->atflag;
 	}
 	
 	if( Ble_ReadNv_Inf( BLE_NVID_DRFLG_START, (uint8_t *)&snv_DriverFailure.crc32) == 0 )
@@ -1683,6 +1723,188 @@ void wdtInitFxn(void)
  
 	watchdog = Watchdog_open(CC2650_WATCHDOG0, &wp);
 	Watchdog_setReload(watchdog, 1500000); // 1sec (WDT runs always at 48MHz/32)
+}
+#endif
+
+#ifndef DEMO
+/*********************************************************************
+ * @fn      SimpleBLEPeripheral_uart0Task
+ *
+ * @brief   Uart0 data analysis.
+ *
+ * @param   ...
+ *
+ * @return  none
+ */
+static void SimpleBLEPeripheral_uart0Task(void)
+{
+	uint8_t heard;
+	uint8_t length;
+	uint8_t restart;
+	uint8_t res;
+	uint8_t datebuf[DEFAULT_UART_AT_CMD_LEN];
+	uint8_t writebuff[DEFAULT_UART_AT_CMD_LEN];
+	
+	snv_device_inf_t *ptr = (snv_device_inf_t *)writebuff;
+	
+	restart = FALSE;
+	heard = rx_buff_header;
+	if( rx_buff_tailor < heard )
+	{
+	    length = heard - rx_buff_tailor;
+		
+		if( length <= DEFAULT_UART_AT_CMD_LEN)
+			memcpy( datebuf, (void *)&rxbuff[rx_buff_tailor], length );
+		else
+		{
+			rx_buff_tailor = heard;
+			return;		
+		}
+	}
+	else if( rx_buff_tailor > heard)
+	{
+	    length = RX_BUFF_SIZE - rx_buff_tailor + heard;
+		
+		if(length <= DEFAULT_UART_AT_CMD_LEN)
+		{
+		    res =  RX_BUFF_SIZE - rx_buff_tailor;
+			memcpy( datebuf, (void *)&rxbuff[rx_buff_tailor], res );
+			memcpy( &datebuf[RX_BUFF_SIZE - rx_buff_tailor], (void *)rxbuff,  heard );
+		}
+		else
+		{
+			rx_buff_tailor = heard;
+			return;
+		}
+	}
+	else
+	  return;	
+	
+	if( DEFAULT_UART_AT_TEST_LEN == length )
+	{
+		if( str_Compara( datebuf, "AT\r\n", 4 ) )
+		{
+			Uart0_Write("OK\r\n", 4);	
+		}	
+	}
+	else if( DEFAULT_UART_AT_MAC_LEN == length )
+	{
+		if( str_Compara( datebuf, "AT+MAC\r\n", 8 ) )
+		{
+			Uart0_Write(&userTxInf.devId[0], 6);	
+		}				
+	}
+	else if( DEFAULT_UART_AT_CMD_LEN == length )
+	{
+		if( datebuf[0] == 0xfe )
+		{
+			//power
+		    if( datebuf[1] == 20)
+				ptr->loraPara_u.bit_t.power = 1;
+			else 
+			    ptr->loraPara_u.bit_t.power = 0;
+			
+			//rate
+			ptr->loraPara_u.bit_t.rate = datebuf[2];
+			
+			//channel
+			ptr->loraPara_u.bit_t.channel = datebuf[3];
+			
+			/* TAG Para &  BLE Para use default date */
+			/* TAG Para */
+			ptr->tagPara_u.bit_t.sos            = 0;
+			ptr->tagPara_u.bit_t.sleep_delay    = 0;
+			ptr->tagPara_u.bit_t.scan_num       = 3;
+			ptr->tagPara_u.bit_t.res            = 0;
+			ptr->tagPara_u.bit_t.up_interval    = 3;
+			ptr->tagPara_u.bit_t.up_interval_s  = 8;
+			ptr->tagPara_u.tagPara              = ntohs(ptr->tagPara_u.tagPara);
+	
+			/* BLE Para */
+			ptr->blePara_u.bit_t.res            = 0;
+			ptr->blePara_u.bit_t.scan_time      = 5;
+			  
+			ptr->atflag = (0xFF - 1);  
+			  
+			Uart0_Write("OK+1\r\n", 6);
+			
+			Ble_WriteNv_Inf( BLE_NVID_DEVINF_START, &writebuff[sizeof(uint32_t)]);		
+			
+			restart = TRUE;
+		}
+	}
+	else
+	{
+	  rx_buff_tailor = heard;
+	  return;
+	}
+	
+	rx_buff_tailor = heard;
+	
+	if( TRUE == restart )
+	{
+		HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);		
+	}
+}
+
+/*********************************************************************
+ * @fn      uart0BoardReciveCallback
+ *
+ * @brief   Uart0 .
+ *
+ * @param   ...
+ *
+ * @return  none
+ */
+void uart0BoardReciveCallback(UART_Handle handle, void *buf, size_t count)
+{
+    uint8_t tempcnt;
+	uint8_t *ptr;
+	uint8_t rxlen;
+	
+	ptr = (uint8_t *)buf;
+	rxlen = count;
+	if( rx_buff_header + rxlen >= RX_BUFF_SIZE )
+	{
+		tempcnt = RX_BUFF_SIZE - rx_buff_header; 
+		memcpy((void *)&rxbuff[rx_buff_header], ptr, tempcnt );
+		ptr += tempcnt;
+		tempcnt = rxlen - tempcnt;
+		rx_buff_header = 0;
+		memcpy( (void *)&rxbuff[rx_buff_header], ptr, tempcnt );
+		rx_buff_header += tempcnt;
+	}
+	else 
+	{
+		memcpy( (void *)&rxbuff[rx_buff_header], ptr, rxlen );
+		rx_buff_header += rxlen;
+	}
+	
+    UART_read(handle, buf, UART0_RECEICE_BUFF_SIZE);
+	
+    Semaphore_post(sem);
+}
+
+/*********************************************************************
+ * @fn      str_Compara
+ *
+ * @brief   Compare the array.
+ *
+ * @param   ..
+ *
+ * @return  0 Or 1
+ */
+uint8_t str_Compara( uint8_t *ptr1, uint8_t *ptr2, uint8_t len) 
+{
+	uint8_t i;
+	
+	for( i=0; i<len; i++ )
+	{
+		if( ptr1[i] != ptr2[i] )
+			return 0;  	
+	}
+	
+	return 1;  
 }
 #endif
 

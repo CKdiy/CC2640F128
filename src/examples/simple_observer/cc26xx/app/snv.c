@@ -12,7 +12,7 @@
 static const block_info_t fb[] =
 {
     /* block ID (must < 0xf)    size */
-	{BLE_NVID_DEVINF_START,       9},
+	{BLE_NVID_DEVINF_START,       10},
 	{BLE_NVID_DRFLG_START,        6},
 };
 
@@ -101,6 +101,8 @@ static int DevInf_Snv_Init(uint8_t len)
 	/* BLE Para */
 	ptr->blePara_u.bit_t.res            = 0;
 	ptr->blePara_u.bit_t.scan_time      = 5;
+	
+	ptr->atflag                         = 0x0;
 	
 	ptr->crc32 = crc32(0, (uint8_t *)(&ptr->loraPara_u), len - sizeof(uint32_t));
 	

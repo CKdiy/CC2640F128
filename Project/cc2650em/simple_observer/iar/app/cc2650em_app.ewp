@@ -218,7 +218,7 @@
                     <state>HEAPMGR_SIZE=0</state>
                     <state>ICALL_MAX_NUM_ENTITIES=6</state>
                     <state>ICALL_MAX_NUM_TASKS=3</state>
-                    <state>POWER_SAVING</state>
+                    <state>xPOWER_SAVING</state>
                     <state>USE_ICALL</state>
                     <state>xBOARD_DISPLAY_EXCLUDE_LCD</state>
                     <state>xDisplay_DISABLE_ALL</state>
@@ -226,6 +226,7 @@
                     <state>xdc_runtime_Log_DISABLE_ALL</state>
                     <state>USE_RCOSC</state>
                     <state>IWDG_ENABLE</state>
+                    <state>xDEMO</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -1225,6 +1226,12 @@
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\src\components\hal\src\target\_common\TRNGCC26XX.h</name>
+            </file>
+        </group>
+        <group>
+            <name>UART</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\src\examples\simple_observer\cc26xx\app\hal_uart.c</name>
             </file>
         </group>
         <group>

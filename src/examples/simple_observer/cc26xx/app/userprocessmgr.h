@@ -66,6 +66,7 @@ typedef struct
 	uint8 sosstatustick;
 	uint8 noacktimetick;
 	uint8 memsinterrupt_status;
+	uint8 atflag;
 }UserProcessMgr_t;
 
 typedef struct 

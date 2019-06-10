@@ -71,9 +71,9 @@ typedef union
 typedef union lora_para_n
 {
 	struct
-	{
-		uint8_t		power   		:8;      // Bit15~Bit8 Lora Power
-		uint8_t     channel         :5;      // Bit4~Bit0  channel
+	{    
+		uint8_t		channel   		:8;      // Bit15~Bit8 channel
+		uint8_t     power           :5;      // Bit4~Bit0  Lora Power 
 		uint8_t     rate            :3;      // Bit7~Bit5  rate
 	}bit_t;
 	
@@ -153,6 +153,7 @@ typedef struct
 	lora_para_n			loraPara_u;
 	tag_para_n			tagPara_u;
 	ble_para_n			blePara_u;
+	uint8_t             atflag;
 }snv_device_inf_t;
 
 typedef struct
