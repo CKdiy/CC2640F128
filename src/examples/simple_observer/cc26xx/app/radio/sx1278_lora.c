@@ -270,6 +270,8 @@ void sx1278_SendBuf(uint8_t *pkt, uint8_t pkt_size)
 	if( NULL == pkt )
 	  return;
 	
+	sx1278DelayMs();
+	
 	sx1278_SetOpMode( RFLR_OPMODE_STANDBY );
 	
 	sx1278DelayMs();

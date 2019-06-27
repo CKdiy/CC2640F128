@@ -18,7 +18,7 @@
 
 /* sx1278 pin table */
 PIN_Config sx1278RstPinTable[] = {
-    Board_SX1278_RST   | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_LOW  | PIN_PUSHPULL, 	// Enable 3V3 domain. Need to be high for sx1278 to work.
+    Board_SX1278_RST   | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL, 	// Enable 3V3 domain. Need to be high for sx1278 to work.
 	PIN_TERMINATE                                                               // Terminate list
 };
 
@@ -124,6 +124,7 @@ void sx1278_LowPowerMgr(void)
 	sx1278CsnPinTable[0] = Board_SX1278_CSN   | PIN_GPIO_OUTPUT_DIS  | PIN_INPUT_EN  | PIN_PULLDOWN;
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 
+	sx1278_StatusPin_Disable();
 }
 
 void sx1278_OutputLowPw(void)
@@ -143,7 +144,7 @@ void sx1278_OutputLowPw(void)
 	sx1278CsnPinTable[0] = Board_SX1278_CSN | PIN_GPIO_OUTPUT_EN  | PIN_GPIO_HIGH  | PIN_PUSHPULL;
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 	
-	Task_sleep(1*1000/Clock_tickPeriod);
+	Task_sleep(10*1000/Clock_tickPeriod);
 }
 
 /*********************************************************************
@@ -206,10 +207,8 @@ bool Open_sx1278_PINs(void)
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 	if(sx1278CsnPin == NULL)
 	  return FALSE;
-   
+
 	Task_sleep(10*1000/Clock_tickPeriod);
-	
-	PIN_setOutputValue(sx1278RstPin, Board_SX1278_RST, 1);
 	
 	return TRUE;
 }

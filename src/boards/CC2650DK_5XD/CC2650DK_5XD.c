@@ -75,7 +75,7 @@
 #endif
 
 const PIN_Config BoardGpioInitTable[] = {
-    Board_SX1278_RST | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH   | PIN_PUSHPULL,                     
+    Board_SX1278_RST | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW   | PIN_PUSHPULL,                     
     Board_SX1278_CSN | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH   | PIN_PUSHPULL,
     PIN_TERMINATE                                                                               
 };

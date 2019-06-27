@@ -147,9 +147,6 @@
 #define DEFAULT_PERDRVFAILMAX_TIME             4 
 #define DEFAULT_CHANNELCHECK_TIME              2   
 #define DEFAULT_NOACKTIME_TICK                 2     
-
-#define DEFAULT_LORA_BASEBAND                           470300000 
-#define DEFAULT_LORACHANNEL_INCREMENTAL_CHANGE          200000 
 		
 #define DEFAULT_UART_AT_TEST_LEN              4
 #define DEFAULT_UART_AT_MAC_LEN               8   
@@ -304,9 +301,9 @@ void TagPara_Get(void);
 void Voltage_Check(void);
 void SleepToActive_Ready(void);
 void ActiveToSleep_Ready(void);
-static void UserProcess_LoraChannel_Change( void );
+static void UserProcess_LoraChannel_Change( uint8_t rand  );
 static bool UserProcess_MemsInterrupt_Mgr( uint8_t status );
-static uint8_t getRand(void);
+static uint8_t getRand( void );
 
 #ifndef DEMO
 void uart0BoardReciveCallback(UART_Handle handle, void *buf, size_t count);
@@ -596,6 +593,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		events &= ~SBP_LORAUPDELAY_EVT;
 	  	
 		UserProcess_LoraInf_Send(rfRxTxBuf, loraUpPktLen);
+	}
+	else if(events & SBP_LORAUP_EVT)
+	{
+		events &= ~SBP_LORAUP_EVT;
+		
+		Voltage_Check();
 		
 		if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
 		{
@@ -603,25 +606,17 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_400ms;
 			Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 		}
-	}
-	else if(events & SBP_LORAUP_EVT)
-	{
-		events &= ~SBP_LORAUP_EVT;
-					
-		UserProcess_GetLoraUp_Pkt();
+		else
+		{
+			UserProcess_GetLoraUp_Pkt();
 		
-		if( loraUpPktLen != 0 )
-		{	
-		    if( UserTimeSeries.channelCheckTime == 0 )
-				Util_restartClock(&loraUpDelayClock, 10);
-			else if(UserTimeSeries.channelCheckTime > DEFAULT_CHANNELCHECK_TIME*2) 
-			{
-			    Util_stopClock(&loraUpDelayClock);
-			    UserTimeSeries.channelCheckTime = 0;
+			 if( loraUpPktLen != 0 )
+		  	{	
+		  		res = getRand();
+			
+				Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*res);
 			}
 		}
-		
-		Voltage_Check();	
 		
 		if( 3 == userTxInf.device_up_inf.bit_t.acflag )
 			userTxInf.device_up_inf.bit_t.acflag = 0;
@@ -896,7 +891,6 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 				Task_sleep(50*1000/Clock_tickPeriod);
 				Board_LedCtrl(Board_LED_OFF);
 				userProcessMgr.rfrxtimeout = 0;
-				userProcessMgr.noacktimetick = 0;
 			}	
 		}	  
 	  }
@@ -1229,17 +1223,9 @@ static void SimpleBLEObserver_loraStatusTask(uint8_t rxtimeout, uint8_t txtimeou
 		/* 接收超时，强制进入Sleep模式 */
 		if( userProcessMgr.rfrxtimeout >= rxtimeout)
 		{
-			userProcessMgr.noacktimetick ++;
 			sx1278_SetStby();
 			Task_sleep(5*1000/Clock_tickPeriod);
-			sx1278_SetSleep();
-			
-			if( userProcessMgr.noacktimetick > DEFAULT_NOACKTIME_TICK )
-			{
-				UserProcess_LoraChannel_Change();
-				userProcessMgr.noacktimetick = 0;
-			}
-			
+			sx1278_SetSleep();			
 			sx1278_LowPowerMgr();
 			userProcessMgr.rfrxtimeout = 0;
 		}
@@ -1448,44 +1434,23 @@ static void UserProcess_GetLoraUp_Pkt(void)
 
 static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 {
-  	uint8_t i;
+  	uint8_t res;
 	
 	if( SX1278.State == RF_IDLE )	 		
 		sx1278_OutputLowPw();
-			
-	if( sx1278IsChannelFree( SX1278.Modem, SX1278.LoRa.Channel, -75) ) 
-	{
-	  	sx1278_StatusPin_Disable();
-		sx1278_SendBuf(buf, len);
-		sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
-		if(UserTimeSeries.channelCheckTime != 0)
-		{
-			Util_restartClock(&loraUpClock,  loraup_clockTimeout);	
-			Util_restartClock(&userProcessClock, userProcess_clockTimeout);	
-			UserTimeSeries.channelCheckTime  = 0;
-		}
-		scanTagNum = 0;
-	}
-	else
-	{
-		UserTimeSeries.channelCheckTime ++;
-		if( (UserTimeSeries.channelCheckTime == (DEFAULT_CHANNELCHECK_TIME + 1) )
-		    || (UserTimeSeries.channelCheckTime == (DEFAULT_CHANNELCHECK_TIME*2 + 1)) ) //准备调频检测
-		{
-	  		UserProcess_LoraChannel_Change();
-		}
-		sx1278_LowPowerMgr();
 	
-		i = getRand();
-		
-		if(UserTimeSeries.channelCheckTime < DEFAULT_CHANNELCHECK_TIME*2 + 1)
-			Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*i);
-	}
+	res = getRand();
+	UserProcess_LoraChannel_Change(res);
+	
+   	sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
+	sx1278_SendBuf(buf, len);
+
+	scanTagNum = 0;
 }
 
-static void UserProcess_LoraChannel_Change( void )
-{
-	if( SX1278.LoRa.Channel ==  lora_channel_Table1[loraChannel_ID])
+static void UserProcess_LoraChannel_Change( uint8_t rand )
+{   
+	if( (rand % 2) == 0)
 		SX1278.LoRa.Channel = lora_channel_Table2[loraChannel_ID];
 	else
 		SX1278.LoRa.Channel = lora_channel_Table1[loraChannel_ID];
@@ -1578,7 +1543,7 @@ void TagPara_Get(void)
 			else
 			{
 				loraChannel_ID = 0;
-				userLoraPara->Channel = DEFAULT_LORA_BASEBAND;		
+				userLoraPara->Channel = lora_channel_Table1[loraChannel_ID];		
 			}
 			
 			/* Test Para */
