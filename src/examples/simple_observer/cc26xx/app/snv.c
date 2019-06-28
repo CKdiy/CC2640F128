@@ -100,7 +100,7 @@ static int DevInf_Snv_Init(uint8_t len)
 	
 	/* BLE Para */
 	ptr->blePara_u.bit_t.res            = 0;
-	ptr->blePara_u.bit_t.scan_time      = 5;
+	ptr->blePara_u.bit_t.scan_time      = 8;
 	
 	ptr->atflag                         = 0x0;
 	

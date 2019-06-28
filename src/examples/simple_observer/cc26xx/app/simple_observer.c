@@ -101,7 +101,7 @@
 #define DEFAULT_MAX_SCAN_RES                  30
 
 // Scan duration in ms
-#define DEFAULT_SCAN_DURATION_500ms           500
+#define DEFAULT_SCAN_DURATION_800ms           800
 
 // Discovery mode (limited, general, all)
 #define DEFAULT_DISCOVERY_MODE                DEVDISC_MODE_ALL
@@ -447,7 +447,6 @@ void SimpleBLEObserver_init(void)
   userProcessMgr.rftxtimeout = 0;
   userProcessMgr.rfrxtimeout = 0;
   
-//Voltage_Check();
   TagPara_Get();
   
 #ifdef DEMO
@@ -488,10 +487,10 @@ void SimpleBLEObserver_init(void)
 	
   // Setup GAP
   if( UserTimeSeries.timeForscanning == 0)
-    UserTimeSeries.timeForscanning = DEFAULT_SCAN_DURATION_500ms;
+    UserTimeSeries.timeForscanning = DEFAULT_SCAN_DURATION_800ms;
   
-  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_500ms);
-  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_500ms);
+  GAP_SetParamValue(TGAP_GEN_DISC_SCAN, DEFAULT_SCAN_DURATION_800ms);
+  GAP_SetParamValue(TGAP_LIM_DISC_SCAN, DEFAULT_SCAN_DURATION_800ms);
   
   // add a white list entry
   if(DEFAULT_DISCOVERY_WHITE_LIST)
