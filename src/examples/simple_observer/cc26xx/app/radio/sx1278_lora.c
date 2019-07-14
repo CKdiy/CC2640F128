@@ -175,6 +175,15 @@ void sx1278_SetLoraPara(LoRaSettings_t *ptr)
 	
 	sx1278_WriteData( REG_PACONFIG, paConfig );
 	sx1278_WriteData( REG_PADAC, paDac );
+	
+	//RegOcp,Close Ocp		
+	res = 0x0B;
+	sx1278_WriteData(REG_LR_OCP, res);
+	
+	//RegLNA,High & LNA Enable
+	res = 0x23;
+	sx1278_WriteData(REG_LR_LNA, res);
+	
 	SX1278.LoRa.Power = power;
 	
 	if(ptr->Sf < 6)	
@@ -324,6 +333,10 @@ void sx1278_EnterRx(void)
     uint8_t rxContinuous = false;
 	uint8_t res;
 	
+	sx1278DelayMs();
+	sx1278_SetOpMode( RFLR_OPMODE_STANDBY );
+	sx1278DelayMs();
+		
 	if( SX1278.LoRa.IqInverted == TRUE )
 	{
 	    sx1278_ReadData( REG_LR_INVERTIQ, &res);

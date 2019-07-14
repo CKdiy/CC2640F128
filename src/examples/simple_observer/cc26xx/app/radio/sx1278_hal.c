@@ -207,8 +207,6 @@ bool Open_sx1278_PINs(void)
 	sx1278CsnPin = PIN_open(&sx1278CsPinState, sx1278CsnPinTable);
 	if(sx1278CsnPin == NULL)
 	  return FALSE;
-
-	Task_sleep(10*1000/Clock_tickPeriod);
 	
 	return TRUE;
 }
