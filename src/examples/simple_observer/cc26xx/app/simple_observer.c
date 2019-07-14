@@ -608,7 +608,8 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		else
 		{
 			UserProcess_GetLoraUp_Pkt();
-		
+			scanTagNum = 0;
+			rcoscTimeTick = 0;
 			 if( loraUpPktLen != 0 )
 		  	{	
 		  		res = getRand();
@@ -629,7 +630,6 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		userTxInf.device_up_inf.bit_t.beaconNum_3 = 0;
 		userTxInf.device_up_inf.bit_t.beaconNum_4 = 0;
 		bleScanTimeTick = 0;
-		rcoscTimeTick   = 0;
 					
 		if(userProcessMgr.memsActiveFlg == TRUE)
 		{
@@ -674,7 +674,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				UserProcess_MemsInterrupt_Mgr(ENABLE);
 	
 				GAP_SetParamValue(TGAP_GEN_DISC_SCAN, UserTimeSeries.timeForscanning);
-				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, UserTimeSeries.timeForscanning);
+				GAP_SetParamValue(TGAP_LIM_DISC_SCAN, UserTimeSeries.timeForscanning);	
 				
 				/* Lora Up Timer */
 				loraup_clockTimeout = UserTimeSeries.txinterval*RCOSC_CALIBRATION_PERIOD;
@@ -688,6 +688,7 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 				Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 				/* Start Timer */
 				Util_startClock(&loraUpClock);
+				
 				userProcessMode = USER_PROCESS_ACTIVE_MODE;
 		 	}	  
 	  		break;
@@ -974,7 +975,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
       break;
 
     case GAP_DEVICE_DISCOVERY_EVENT:
-      {
+      {	  
 	      // discovery complete
 		  if( USER_PROCESS_IDLE_MODE == userProcessMode)
 		  {
@@ -1005,7 +1006,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 		  {
 			  if( 0 == tagInf_t.tagNum )
 			  {
-			    HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);				
+//			    HCI_EXT_ResetSystemCmd(HCI_EXT_RESET_SYSTEM_HARD);				
 			  }
 			  
 			  //根据Rssi大小排序
@@ -1034,7 +1035,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 			  }
 					
 			  scanTagNum += tagInf_t.tagNum; 
-					
+			  rcoscTimeTick ++;		
 			  if(rcoscTimeTick > 0)
 			  {
 				  switch(rcoscTimeTick)
@@ -1056,6 +1057,8 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 				  }  
 			  }
 			  tagInf_t.tagNum = 0;
+			  if( rcoscTimeTick == UserTimeSeries.scanTimes)
+				rcoscTimeTick = 0;
 		  }		
       }
       break;
@@ -1247,10 +1250,6 @@ static void SimpleBLEObserver_performPeriodicTask(void)
     	GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                     DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                     DEFAULT_DISCOVERY_WHITE_LIST );		
-    	if( rcoscTimeTick == UserTimeSeries.scanTimes)
-        	rcoscTimeTick = 0;
-		
-    	rcoscTimeTick ++;
 	}
 	
 	SimpleBLEObserver_loraStatusTask(DEFAULT_RFRXTIMOUT_TIME, DEFAULT_RFTXTIMOUT_TIME);
@@ -1281,12 +1280,7 @@ static void SimpleBLEObserver_sleepModelTask(void)
 	{
 		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                         DEFAULT_DISCOVERY_ACTIVE_SCAN,
-                                        DEFAULT_DISCOVERY_WHITE_LIST );		
-		
-		if( rcoscTimeTick == UserTimeSeries.scanTimes)
-		  	rcoscTimeTick = 0;
-		
-    	rcoscTimeTick ++;   
+                                        DEFAULT_DISCOVERY_WHITE_LIST );				  
 	}	
 	
 	SimpleBLEObserver_loraStatusTask(DEFAULT_RFRXTIMOUT_TIME, DEFAULT_RFTXTIMOUT_TIME);
@@ -1443,8 +1437,6 @@ static void UserProcess_LoraInf_Send(uint8_t *buf, uint8_t len)
 	
    	sx1278_StatusPin_Enable(SimpleBLEObserver_loraStatusHandler);
 	sx1278_SendBuf(buf, len);
-
-	scanTagNum = 0;
 }
 
 static void UserProcess_LoraChannel_Change( uint8_t rand )
