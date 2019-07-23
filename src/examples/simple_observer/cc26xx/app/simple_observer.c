@@ -497,10 +497,10 @@ void SimpleBLEObserver_init(void)
   {
  	//HCI_LE_AddWhiteListCmd(HCI_PUBLIC_DEVICE_ADDRESS,&bdAdder);
   }
-  
+
   // Start the Device
   VOID GAPObserverRole_StartDevice((gapObserverRoleCB_t *)&simpleBLERoleCB);
-  
+
  #ifdef USE_RCOSC
 	RCOSC_enableCalibration();
 #endif // USE_RCOSC  	
@@ -597,6 +597,8 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 	{
 		events &= ~SBP_LORAUP_EVT;
 		
+		UserProcess_GetLoraUp_Pkt();
+		
 		Voltage_Check();
 		
 		if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
@@ -605,25 +607,29 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_400ms;
 			Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 		}
-		else
+		else if( USER_PROCESS_SLEEP_MODE == userProcessMode)
 		{
-			UserProcess_GetLoraUp_Pkt();
-			scanTagNum = 0;
-			rcoscTimeTick = 0;
-			 if( loraUpPktLen != 0 )
+			Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms);			
+			Util_stopClock(&loraUpClock);		
+		}
+		else
+		{		
+			if( loraUpPktLen != 0 )
 		  	{	
 		  		res = getRand();
 			
 				Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*res);
 			}
+			Util_startClock(&loraUpClock);	
 		}
+		
+		scanTagNum = 0;
+		rcoscTimeTick = 0;
 		
 		if( 3 == userTxInf.device_up_inf.bit_t.acflag )
 			userTxInf.device_up_inf.bit_t.acflag = 0;
 		else
 			userTxInf.device_up_inf.bit_t.acflag ++;
-										
-		Util_startClock(&loraUpClock);	
 					
 		userTxInf.device_up_inf.bit_t.beaconNum_1 = 0;
 		userTxInf.device_up_inf.bit_t.beaconNum_2 = 0;
@@ -793,9 +799,9 @@ void ActiveToSleep_Ready(void)
 		UserProcess_MemsInterrupt_Mgr(ENABLE);	
 	}
 	
+	Util_stopClock(&loraUpClock);	
 	loraup_clockTimeout = UserTimeSeries.txinterval_S*RCOSC_CALIBRATION_PERIOD;
 	userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_3s;
-	Util_restartClock(&loraUpClock, loraup_clockTimeout);
 	Util_restartClock(&userProcessClock, userProcess_clockTimeout);	
 	userProcessMode = USER_PROCESS_SLEEP_MODE;
 }
@@ -876,7 +882,19 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 		{
 			sx1278_TxDoneCallback();
 			userProcessMgr.rftxtimeout = 0;
-			sx1278_EnterRx();
+			
+			/* 休眠模式下不开启接收窗口 */
+			if( USER_PROCESS_SLEEP_MODE == userProcessMode )
+			{
+				sx1278_SetStby();
+				Task_sleep(5*1000/Clock_tickPeriod);
+				sx1278_SetSleep();
+				sx1278_LowPowerMgr();			
+			}
+			else
+			{			  
+				sx1278_EnterRx();
+			}
 		}
 		else if( RF_RX_RUNNING == SX1278.State)
 		{
@@ -977,6 +995,8 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
     case GAP_DEVICE_DISCOVERY_EVENT:
       {	  
 	      // discovery complete
+  		  GAPObserverRole_CancelDiscovery();
+		  
 		  if( USER_PROCESS_IDLE_MODE == userProcessMode)
 		  {
 			if( 0 == tagInf_t.tagNum )
@@ -1059,7 +1079,11 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
 			  tagInf_t.tagNum = 0;
 			  if( rcoscTimeTick == UserTimeSeries.scanTimes)
 				rcoscTimeTick = 0;
-		  }		
+		  }	
+		  
+		  //sleep模式下开启一次Lora传输本次扫描结果
+		  if( USER_PROCESS_SLEEP_MODE == userProcessMode)
+		  	Util_restartClock(&loraUpClock, 10);
       }
       break;
 
@@ -1276,14 +1300,14 @@ static void SimpleBLEObserver_sleepModelTask(void)
 	sleep_s = loraup_clockTimeout/userProcess_clockTimeout;	  
 	
 	bleScanTimeTick ++;
-	if( bleScanTimeTick >= sleep_s - 1)
+	if( bleScanTimeTick >= sleep_s)
 	{
 		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                         DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                         DEFAULT_DISCOVERY_WHITE_LIST );				  
 	}	
-	
-	SimpleBLEObserver_loraStatusTask(DEFAULT_RFRXTIMOUT_TIME, DEFAULT_RFTXTIMOUT_TIME);
+	  
+	SimpleBLEObserver_loraStatusTask(DEFAULT_RFTXTIMOUT_TIME, DEFAULT_RFRXTIMOUT_TIME);
 	
 	if(userProcessMgr.memsActiveFlg == TRUE)
 	{
@@ -1445,7 +1469,6 @@ static void UserProcess_LoraChannel_Change( uint8_t rand )
 		SX1278.LoRa.Channel = lora_channel_Table2[loraChannel_ID];
 	else
 		SX1278.LoRa.Channel = lora_channel_Table1[loraChannel_ID];
-			
 	sx1278_SetRFChannel(SX1278.LoRa.Channel);	
 }
 
