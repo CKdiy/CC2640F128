@@ -617,8 +617,11 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 			if( loraUpPktLen != 0 )
 		  	{	
 		  		res = getRand();
-			
-				Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*res);
+			   
+				if( res == 0 )
+					Util_restartClock(&loraUpDelayClock, 10);
+				else
+				  	Util_restartClock(&loraUpDelayClock, RCOSC_CALIBRATION_PERIOD_160ms*res);
 			}
 			Util_startClock(&loraUpClock);	
 		}
@@ -892,7 +895,7 @@ static void SimpleBLEObserver_processAppMsg(sboEvt_t *pMsg)
 				sx1278_LowPowerMgr();			
 			}
 			else
-			{			  
+			{					  	
 				sx1278_EnterRx();
 			}
 		}
@@ -1909,20 +1912,17 @@ static void getMacAddress(uint8_t *mac_address)
 	*mac_address++ = BREAK_UINT32(mac0, 0);  
 }
 
+uint32_t s_rand;
 static uint8_t getRand(void)
 {
     int res;
 	uint8_t seed;
-	uint32_t s_rand;
 	
-	s_rand = Clock_getTicks();
+	s_rand += userTxInf.devId[0] + Clock_getTicks();
 	srand(s_rand);
 	res = rand() + 1;	
 	s_rand = ((res << 8) | (res >> 8)) >> 16;
-	seed =  s_rand%0x15;
-	
-	if(seed == 0)
-	  seed = 1;
+	seed =  s_rand%0x17; 
 	
     return seed;
 }
