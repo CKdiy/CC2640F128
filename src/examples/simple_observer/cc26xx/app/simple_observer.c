@@ -239,7 +239,7 @@ static bool lowpower_flg = FALSE;
 extern volatile uint8_t rx_buff_header,rx_buff_tailor;
 static uint8_t rxbuff[RX_BUFF_SIZE];
 #endif
-const char version[] = "V0.03";
+const char version[] = "V0.04";
 
 /********************* Lora Channel Table ************************/
 const uint32_t lora_channel_Table1[] = 
