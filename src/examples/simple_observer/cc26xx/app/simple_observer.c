@@ -197,7 +197,6 @@ static Clock_Struct loraUpDelayClock;
 
 // Power Notify Object for wake-up callbacks
 Power_NotifyObj injectCalibrationPowerNotifyObj;
-static uint8_t ledStatus;
 static uint8_t isEnabled = FALSE;
 static uint8_t rcoscTimeTick;
 static uint8_t scanTagNum; 
@@ -234,6 +233,7 @@ snv_driverfailure_t snv_DriverFailure;
 static uint8_t loraChannel_ID;
 static uint32_t loraup_clockTimeout;
 static uint32_t userProcess_clockTimeout;
+static bool lowpower_flg = FALSE;
 
 #ifndef DEMO
 extern volatile uint8_t rx_buff_header,rx_buff_tailor;
@@ -505,19 +505,10 @@ void SimpleBLEObserver_init(void)
 	RCOSC_enableCalibration();
 #endif // USE_RCOSC  	
 	
-  /* Base timer */
-  if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
-  {
-      userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_400ms;
-      Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
-                          userProcess_clockTimeout, 0, false, SBP_PERIODIC_EVT);  
-  }
-  else
-  {
-      userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD;
-      Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
-                          userProcess_clockTimeout, 0, false, SBP_PERIODIC_EVT); 
-  }
+  
+  userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD;
+  Util_constructClock(&userProcessClock, SimpleBLEObserver_userClockHandler,
+                      userProcess_clockTimeout, 0, false, SBP_PERIODIC_EVT); 
   
   Util_startClock(&userProcessClock);
 }
@@ -601,11 +592,9 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		
 		Voltage_Check();
 		
-		if( USER_PROCESS_LOWVOLTAGE_MODE == userProcessMode)
+		if( lowpower_flg )
 		{
 		 	Util_stopClock(&loraUpClock);	
-			userProcess_clockTimeout = RCOSC_CALIBRATION_PERIOD_400ms;
-			Util_restartClock(&userProcessClock, userProcess_clockTimeout);
 		}
 		else if( USER_PROCESS_SLEEP_MODE == userProcessMode)
 		{
@@ -764,31 +753,12 @@ static void SimpleBLEObserver_taskFxn(UArg a0, UArg a1)
 		  		Board_LedCtrl(Board_LED_ON);
 				userProcessMode = USER_PROCESS_IDLE_MODE;
 			}
-			break;
-			
-	    case USER_PROCESS_LOWVOLTAGE_MODE:
-		  {
-			if(events & SBP_PERIODIC_EVT)
-			{
-				events &= ~SBP_PERIODIC_EVT;
-					
-				Util_startClock(&userProcessClock);		
-				
-				if( ledStatus & 0x01)
-				  ledStatus &= ~(1<<0);
-				else
-				  ledStatus |= 1<<0;
-				
-				Board_LedCtrl(ledStatus);
-			}
-		  }
-		  break;
+			break;			
 		  
 		default:
 	 		break;
 	}  
   }
-  
 }
 
 void ActiveToSleep_Ready(void)
@@ -972,8 +942,7 @@ static void SimpleBLEObserver_processRoleEvent(gapObserverRoleEvent_t *pEvent)
   {
     case GAP_DEVICE_INIT_DONE_EVENT:
       {
-		if( (USER_PROCESS_PERIPHERALDRVFAIL_MODE != userProcessMode) &&
-		    (USER_PROCESS_LOWVOLTAGE_MODE != userProcessMode))
+		if( USER_PROCESS_PERIPHERALDRVFAIL_MODE != userProcessMode )
 		{
 	    	//设备上电初始化完成即开启扫描,扫描时间500ms
 	        GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
@@ -1271,24 +1240,35 @@ static void SimpleBLEObserver_loraStatusTask(uint8_t rxtimeout, uint8_t txtimeou
 
 static void SimpleBLEObserver_performPeriodicTask(void)
 {	
-	bleScanTimeTick ++;
-	if( bleScanTimeTick > UserTimeSeries.txinterval - UserTimeSeries.scanTimes)
+  	if( !lowpower_flg )
 	{
-    	GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+		bleScanTimeTick ++;
+		if( bleScanTimeTick > UserTimeSeries.txinterval - UserTimeSeries.scanTimes)
+		{
+    		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                     DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                     DEFAULT_DISCOVERY_WHITE_LIST );		
+		}
+	
+		SimpleBLEObserver_loraStatusTask(DEFAULT_RFRXTIMOUT_TIME, DEFAULT_RFTXTIMOUT_TIME);
+	
+    	if(userProcessMgr.sosstatustick !=0)
+    	{
+        	userProcessMgr.sosstatustick ++;
+        	if(userProcessMgr.sosstatustick > DEFAULT_SOSTICK_NUM)
+			{
+            	userProcessMgr.sosstatustick  = 0;
+        	}
+    	}
 	}
-	
-	SimpleBLEObserver_loraStatusTask(DEFAULT_RFRXTIMOUT_TIME, DEFAULT_RFTXTIMOUT_TIME);
-	
-    if(userProcessMgr.sosstatustick !=0)
-    {
-        userProcessMgr.sosstatustick ++;
-        if(userProcessMgr.sosstatustick > DEFAULT_SOSTICK_NUM)
-		{
-            userProcessMgr.sosstatustick  = 0;
-        }
-    }
+	else
+	{
+	   
+		Board_LedCtrl(Board_LED_ON);
+		Task_sleep(50*1000/Clock_tickPeriod);
+		Board_LedCtrl(Board_LED_OFF);	
+		userProcessMgr.sosstatustick = 0;
+	}
 	
 	if(userProcessMgr.memsActiveFlg == FALSE)
 		userProcessMgr.memsNoActiveCounter ++;
@@ -1299,18 +1279,25 @@ static void SimpleBLEObserver_performPeriodicTask(void)
 static void SimpleBLEObserver_sleepModelTask(void)
 {
 	uint16 sleep_s;
-	  
-	sleep_s = loraup_clockTimeout/userProcess_clockTimeout;	  
-	
-	bleScanTimeTick ++;
-	if( bleScanTimeTick >= sleep_s)
+	 
+	if( !lowpower_flg )
 	{
-		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+		sleep_s = loraup_clockTimeout/userProcess_clockTimeout;	  
+	
+		bleScanTimeTick ++;
+		if( bleScanTimeTick >= sleep_s)
+		{
+			GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
                                         DEFAULT_DISCOVERY_ACTIVE_SCAN,
                                         DEFAULT_DISCOVERY_WHITE_LIST );				  
-	}	
+		}	
 	  
-	SimpleBLEObserver_loraStatusTask(DEFAULT_RFTXTIMOUT_TIME, DEFAULT_RFRXTIMOUT_TIME);
+		SimpleBLEObserver_loraStatusTask(DEFAULT_RFTXTIMOUT_TIME, DEFAULT_RFRXTIMOUT_TIME);
+	}
+	else
+	{
+		sleep_s = 0;
+	}
 	
 	if(userProcessMgr.memsActiveFlg == TRUE)
 	{
@@ -1507,8 +1494,8 @@ void Voltage_Check(void)
 		userTxInf.device_up_inf.bit_t.vbat = 1;
   	else if( 1 == val )
 		userTxInf.device_up_inf.bit_t.vbat = 0;
- 	else
-		userProcessMode = USER_PROCESS_LOWVOLTAGE_MODE;
+	else
+		lowpower_flg = TRUE;
 }
 
 void TagPara_Get(void)
